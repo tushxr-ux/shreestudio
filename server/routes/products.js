@@ -1,6 +1,6 @@
 const express = require('express');
 const { read, write } = require('../db');
-const { requireAuth } = require('../auth');
+const { requireAuth, requireAdmin } = require('../auth');
 
 const router = express.Router();
 
@@ -87,8 +87,8 @@ router.post('/:id/reviews', requireAuth, async (req, res) => {
   res.status(201).json({ review, product });
 });
 
-// POST /api/products — Add a new preset/pack directly through the website (auth required)
-router.post('/', requireAuth, async (req, res) => {
+// POST /api/products — Add a new preset/pack directly through the website (ADMIN authority required)
+router.post('/', requireAdmin, async (req, res) => {
   const { name, category, categoryLabel, price, compareAtPrice, tagline, description, format, itemCount, gradient } = req.body || {};
 
   if (!name || !category || !price) {

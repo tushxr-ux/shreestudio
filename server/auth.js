@@ -57,11 +57,28 @@ function requireAuth(req, res, next) {
   }
 }
 
+// Blocks the request with 403 if user is not an administrator.
+function requireAdmin(req, res, next) {
+  requireAuth(req, res, () => {
+    const adminEmail = (process.env.ADMIN_EMAIL || '').toLowerCase();
+    const isUserAdmin = req.user.email && (
+      (adminEmail && req.user.email.toLowerCase() === adminEmail) ||
+      req.user.role === 'admin' ||
+      req.user.isAdmin === true
+    );
+    if (!isUserAdmin) {
+      return res.status(403).json({ error: 'Access denied: Only store administrators can perform this action.' });
+    }
+    next();
+  });
+}
+
 module.exports = {
   signToken,
   setAuthCookie,
   clearAuthCookie,
   optionalAuth,
   requireAuth,
+  requireAdmin,
   COOKIE_NAME,
 };

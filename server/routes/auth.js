@@ -14,6 +14,19 @@ function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
+function formatUser(user) {
+  const adminEmail = (process.env.ADMIN_EMAIL || 'admin@shreestudio.com').toLowerCase();
+  const users = read('users');
+  const isFirstUser = users.length > 0 && users[0].id === user.id;
+  const isAdmin = Boolean(
+    user.role === 'admin' ||
+    user.isAdmin ||
+    isFirstUser ||
+    (adminEmail && user.email.toLowerCase() === adminEmail)
+  );
+  return { id: user.id, name: user.name, email: user.email, isAdmin };
+}
+
 router.post('/signup', async (req, res) => {
   const { name, email, password } = req.body || {};
   if (!name || !email || !password) {
@@ -31,11 +44,17 @@ router.post('/signup', async (req, res) => {
     return res.status(409).json({ error: 'An account with that email already exists.' });
   }
 
+  const adminEmail = (process.env.ADMIN_EMAIL || 'admin@shreestudio.com').toLowerCase();
+  const isFirstUser = users.length === 0;
+  const isAdmin = isFirstUser || (email.toLowerCase() === adminEmail);
+
   const passwordHash = await bcrypt.hash(password, 10);
   const user = {
     id: 'u_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
     name: String(name).trim(),
     email: String(email).toLowerCase().trim(),
+    role: isAdmin ? 'admin' : 'customer',
+    isAdmin,
     passwordHash,
     createdAt: new Date().toISOString(),
   };
@@ -44,7 +63,7 @@ router.post('/signup', async (req, res) => {
 
   const token = signToken(user);
   setAuthCookie(res, token);
-  res.status(201).json({ user: { id: user.id, name: user.name, email: user.email }, token });
+  res.status(201).json({ user: formatUser(user), token });
 });
 
 router.post('/login', async (req, res) => {
@@ -61,7 +80,7 @@ router.post('/login', async (req, res) => {
 
   const token = signToken(user);
   setAuthCookie(res, token);
-  res.json({ user: { id: user.id, name: user.name, email: user.email }, token });
+  res.json({ user: formatUser(user), token });
 });
 
 router.post('/logout', (_req, res) => {
@@ -73,7 +92,7 @@ router.get('/me', requireAuth, (req, res) => {
   const users = read('users');
   const user = users.find((u) => u.id === req.user.sub);
   if (!user) return res.status(404).json({ error: 'User not found.' });
-  res.json({ user: { id: user.id, name: user.name, email: user.email } });
+  res.json({ user: formatUser(user) });
 });
 
 module.exports = router;

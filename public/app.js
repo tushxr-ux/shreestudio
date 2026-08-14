@@ -650,6 +650,10 @@
 
   function renderAuthArea() {
     const area = $('#authArea');
+    const addBtn = $('#openAddProjectBtn');
+    if (addBtn) {
+      addBtn.style.display = (state.user && state.user.isAdmin) ? 'inline-flex' : 'none';
+    }
     if (!state.user) {
       area.innerHTML = `<button class="link-btn" id="signInBtn">Sign in</button>`;
       $('#signInBtn').addEventListener('click', () => openAuth('login'));
