@@ -569,7 +569,7 @@
         try {
           const supabase = window.supabase.createClient(
             'https://osrafnvccspnhwcuhkxn.supabase.co',
-            'your-supabase-anon-key'
+            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9zcmFmbnZjY3Nwbmh3Y3Voa3huIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY2ODA0OTAsImV4cCI6MjEwMjI1NjQ5MH0.rKZchKwD7W-DhbVbHQUiGpARRU2hPMLZQZOddEjpkQc'
           );
           await supabase.auth.signInWithOAuth({ provider: 'google' });
         } catch (_e) {
@@ -588,7 +588,7 @@
         try {
           const supabase = window.supabase.createClient(
             'https://osrafnvccspnhwcuhkxn.supabase.co',
-            'your-supabase-anon-key'
+            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9zcmFmbnZjY3Nwbmh3Y3Voa3huIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY2ODA0OTAsImV4cCI6MjEwMjI1NjQ5MH0.rKZchKwD7W-DhbVbHQUiGpARRU2hPMLZQZOddEjpkQc'
           );
           await supabase.auth.signInWithOAuth({ provider: 'apple' });
         } catch (_e) {
