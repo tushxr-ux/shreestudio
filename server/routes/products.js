@@ -87,4 +87,41 @@ router.post('/:id/reviews', requireAuth, async (req, res) => {
   res.status(201).json({ review, product });
 });
 
+// POST /api/products — Add a new preset/pack directly through the website (auth required)
+router.post('/', requireAuth, async (req, res) => {
+  const { name, category, categoryLabel, price, compareAtPrice, tagline, description, format, itemCount, gradient } = req.body || {};
+
+  if (!name || !category || !price) {
+    return res.status(400).json({ error: 'Name, category, and price are required.' });
+  }
+
+  const products = read('products');
+  const id = 'p_' + Date.now().toString(36);
+  const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+
+  const newProduct = {
+    id,
+    slug,
+    name: String(name).trim(),
+    category: String(category).trim(),
+    categoryLabel: categoryLabel || (category === 'lightroom' ? 'Lightroom Presets' : category === 'photoshop' ? 'Photoshop Actions' : category === 'premiere' ? 'Premiere Pro' : 'After Effects'),
+    price: parseFloat(price) || 0,
+    compareAtPrice: compareAtPrice ? parseFloat(compareAtPrice) : null,
+    tagline: tagline || 'New Release',
+    description: description || 'Professional editing preset pack.',
+    format: format || '.XMP / .DNG',
+    itemCount: parseInt(itemCount) || 10,
+    rating: 5.0,
+    reviewCount: 1,
+    bestseller: false,
+    gradient: gradient || 'linear-gradient(135deg, #e535ab, #7a22ff)',
+    createdAt: new Date().toISOString(),
+  };
+
+  products.unshift(newProduct);
+  await write('products', products);
+
+  res.status(201).json({ product: newProduct });
+});
+
 module.exports = router;

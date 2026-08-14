@@ -732,6 +732,63 @@
     renderAuthArea();
   }
 
+  // ================= ADD PROJECT / PACK =================
+  const addProjectModal = $('#addProjectModal');
+  const openAddProjectBtn = $('#openAddProjectBtn');
+  const closeAddProjectBtn = $('#closeAddProject');
+
+  if (openAddProjectBtn) {
+    openAddProjectBtn.addEventListener('click', () => {
+      if (!state.user) {
+        openAuth('login');
+        toast('Sign in to publish presets or projects to the store.', 'info');
+        return;
+      }
+      openLayer(addProjectModal);
+    });
+  }
+  if (closeAddProjectBtn) {
+    closeAddProjectBtn.addEventListener('click', () => closeLayer(addProjectModal));
+  }
+
+  const addProjectForm = $('#addProjectForm');
+  if (addProjectForm) {
+    addProjectForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const name = $('#projName').value.trim();
+      const category = $('#projCategory').value;
+      const price = $('#projPrice').value;
+      const compareAtPrice = $('#projComparePrice').value;
+      const tagline = $('#projTagline').value.trim();
+      const itemCount = $('#projItemCount').value;
+      const description = $('#projDescription').value.trim();
+
+      try {
+        const data = await api('/products', {
+          method: 'POST',
+          body: JSON.stringify({
+            name,
+            category,
+            price,
+            compareAtPrice,
+            tagline,
+            itemCount,
+            description,
+          }),
+        });
+        toast(`Published "${data.product.name}" to storefront!`, 'success');
+        closeLayer(addProjectModal);
+        addProjectForm.reset();
+        await loadCategories();
+        await loadProducts();
+        const prodSection = document.getElementById('products');
+        if (prodSection) prodSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } catch (err) {
+        toast(err.message, 'error');
+      }
+    });
+  }
+
   // ================= hero 3D tilt (from original design) =================
   const stage = document.getElementById('stage');
   const inner = document.getElementById('stageInner');

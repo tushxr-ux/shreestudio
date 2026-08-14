@@ -27,6 +27,7 @@
       <button data-scroll="reviews">Reviews</button>
     </div>
     <div class="nav-cta">
+      <button class="btn btn-ghost sm" id="openAddProjectBtn" style="font-size:13px; padding:6px 14px; border-radius:8px;">+ Add Project</button>
       <div id="authArea"></div>
       <button class="cart-btn" id="cartBtn" aria-label="Open cart">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M3 3h2l2.4 12.4a2 2 0 0 0 2 1.6h8.2a2 2 0 0 0 2-1.6L21 8H6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="9" cy="21" r="1.4" fill="currentColor"/><circle cx="18" cy="21" r="1.4" fill="currentColor"/></svg>
@@ -280,6 +281,44 @@
 <!-- ===== Order success modal ===== -->
 <div class="modal" id="orderModal">
   <div class="modal-body" id="orderBody"></div>
+</div>
+
+<!-- ===== Add Project / Preset modal ===== -->
+<div class="modal" id="addProjectModal">
+  <div class="modal-head">
+    <h3>Add New Preset or Pack</h3>
+    <button class="icon-btn" id="closeAddProject">✕</button>
+  </div>
+  <div class="modal-body">
+    <form id="addProjectForm">
+      <div class="field">
+        <label>Project / Pack Name</label>
+        <input type="text" id="projName" placeholder="e.g. Cinematic Teal & Orange" required>
+      </div>
+      <div class="field">
+        <label>Category</label>
+        <select id="projCategory" style="width:100%; background:var(--bg-soft); border:1px solid var(--line); border-radius:10px; padding:10px 12px; color:var(--text);">
+          <option value="lightroom">Lightroom Presets</option>
+          <option value="photoshop">Photoshop Actions</option>
+          <option value="premiere">Premiere Pro Templates</option>
+          <option value="aftereffects">After Effects Projects</option>
+        </select>
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+        <div class="field"><label>Price ($)</label><input type="number" id="projPrice" step="0.01" placeholder="29.00" required></div>
+        <div class="field"><label>Compare Price ($)</label><input type="number" id="projComparePrice" step="0.01" placeholder="49.00"></div>
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+        <div class="field"><label>Tagline</label><input type="text" id="projTagline" placeholder="e.g. 15 Desktop & Mobile"></div>
+        <div class="field"><label>Items Count</label><input type="number" id="projItemCount" placeholder="15"></div>
+      </div>
+      <div class="field">
+        <label>Description</label>
+        <textarea id="projDescription" placeholder="Describe the presets, color tones, and best camera profiles…" rows="3"></textarea>
+      </div>
+      <button type="submit" class="btn btn-primary" style="width:100%;">Publish to Storefront</button>
+    </form>
+  </div>
 </div>
 
 <div class="toast-stack" id="toastStack"></div>
