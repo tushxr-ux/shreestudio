@@ -568,7 +568,7 @@
         toast('Redirecting to Google OAuth via Supabase…', 'info');
         try {
           const supabase = window.supabase.createClient(
-            'https://your-supabase-project-id.supabase.co',
+            'https://osrafnvccspnhwcuhkxn.supabase.co',
             'your-supabase-anon-key'
           );
           await supabase.auth.signInWithOAuth({ provider: 'google' });
@@ -587,7 +587,7 @@
         toast('Redirecting to Apple (iOS) OAuth via Supabase…', 'info');
         try {
           const supabase = window.supabase.createClient(
-            'https://your-supabase-project-id.supabase.co',
+            'https://osrafnvccspnhwcuhkxn.supabase.co',
             'your-supabase-anon-key'
           );
           await supabase.auth.signInWithOAuth({ provider: 'apple' });
