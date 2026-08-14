@@ -551,9 +551,9 @@
 
   // ================= AUTH =================
   const authModal = $('#authModal');
-  function openAuth(tab = 'login') {
-    switchAuthTab(tab);
-    $('#authError').classList.remove('show');
+  function openAuth() {
+    const errEl = $('#authError');
+    if (errEl) errEl.classList.remove('show');
     openLayer(authModal);
   }
   $('#closeAuth').addEventListener('click', () => closeLayer(authModal));
@@ -565,7 +565,7 @@
   if (googleBtn) {
     googleBtn.addEventListener('click', async () => {
       if (window.supabase && typeof window.supabase.createClient === 'function') {
-        toast('Google Sign-in connected with Supabase Auth', 'info');
+        toast('Redirecting to Google OAuth via Supabase…', 'info');
         try {
           const supabase = window.supabase.createClient(
             'https://your-supabase-project-id.supabase.co',
@@ -576,7 +576,7 @@
           toast('Supabase Google OAuth setup ready. Add keys in server/.env', 'info');
         }
       } else {
-        toast('Google Sign in ready via Supabase', 'info');
+        toast('Google Sign in ready via Supabase OAuth', 'info');
       }
     });
   }
@@ -584,7 +584,7 @@
   if (appleBtn) {
     appleBtn.addEventListener('click', async () => {
       if (window.supabase && typeof window.supabase.createClient === 'function') {
-        toast('Apple (iOS) Sign-in connected with Supabase Auth', 'info');
+        toast('Redirecting to Apple (iOS) OAuth via Supabase…', 'info');
         try {
           const supabase = window.supabase.createClient(
             'https://your-supabase-project-id.supabase.co',
@@ -595,58 +595,10 @@
           toast('Supabase Apple OAuth setup ready. Add keys in server/.env', 'info');
         }
       } else {
-        toast('Apple (iOS) Sign in ready via Supabase', 'info');
+        toast('Apple (iOS) Sign in ready via Supabase OAuth', 'info');
       }
     });
   }
-
-  function switchAuthTab(tab) {
-    $$('.tab-btn').forEach((b) => b.classList.toggle('active', b.dataset.tab === tab));
-    $('#loginForm').style.display = tab === 'login' ? 'block' : 'none';
-    $('#signupForm').style.display = tab === 'signup' ? 'block' : 'none';
-    $('#authTitle').textContent = tab === 'login' ? 'Welcome back' : 'Create your account';
-    $('#authError').classList.remove('show');
-  }
-  $$('.tab-btn').forEach((btn) => btn.addEventListener('click', () => switchAuthTab(btn.dataset.tab)));
-
-  function showAuthError(message) {
-    const el = $('#authError');
-    el.textContent = message;
-    el.classList.add('show');
-  }
-
-  $('#loginForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const email = $('#loginEmail').value.trim();
-    const password = $('#loginPassword').value;
-    try {
-      const data = await api('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) });
-      state.user = data.user;
-      renderAuthArea();
-      closeLayer(authModal);
-      toast(`Welcome back, ${data.user.name.split(' ')[0]}!`, 'success');
-      refreshCart();
-    } catch (err) {
-      showAuthError(err.message);
-    }
-  });
-
-  $('#signupForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const name = $('#signupName').value.trim();
-    const email = $('#signupEmail').value.trim();
-    const password = $('#signupPassword').value;
-    try {
-      const data = await api('/auth/signup', { method: 'POST', body: JSON.stringify({ name, email, password }) });
-      state.user = data.user;
-      renderAuthArea();
-      closeLayer(authModal);
-      toast(`Welcome to ShreeStudio, ${data.user.name.split(' ')[0]}!`, 'success');
-      refreshCart();
-    } catch (err) {
-      showAuthError(err.message);
-    }
-  });
 
   function renderAuthArea() {
     const area = $('#authArea');
