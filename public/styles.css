@@ -42,12 +42,9 @@ input, select, textarea{ font-family:inherit; }
     radial-gradient(700px 600px at 90% 10%, rgba(255,61,129,0.14), transparent 60%),
     radial-gradient(500px 500px at 50% 90%, rgba(34,229,255,0.08), transparent 60%);
 }
-.tubes-container{
+.tubes-canvas{
   position:fixed; inset:0; width:100vw; height:100vh;
-  pointer-events:none; z-index:0; opacity:0.85; overflow:hidden;
-}
-.tubes-container canvas{
-  width:100% !important; height:100% !important; display:block;
+  pointer-events:none; z-index:0; opacity:0.85; display:block;
 }
 .noise{
   position:fixed; inset:0; z-index:1; pointer-events:none; opacity:0.035; mix-blend-mode:overlay;

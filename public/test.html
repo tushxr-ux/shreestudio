@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>TubesCursor Test</title>
+  <style>
+    body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #0b0c10; }
+    #tubesCanvas { position: absolute; inset: 0; width: 100vw; height: 100vh; display: block; touch-action: none; z-index: 1; }
+    .content { position: relative; z-index: 10; pointer-events: none; color: white; font-family: sans-serif; text-align: center; padding-top: 100px; }
+    .btn { pointer-events: auto; background: #8b5cf6; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-size: 16px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <canvas id="tubesCanvas"></canvas>
+  <div class="content">
+    <h1>3D Tubes Test</h1>
+    <button class="btn" id="testBtn">Interactive Button</button>
+  </div>
+
+  <script type="module">
+    async function init() {
+      const canvas = document.getElementById('tubesCanvas');
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+
+      try {
+        const module = await import('https://cdn.jsdelivr.net/npm/threejs-components@0.0.19/build/cursors/tubes1.min.js');
+        const TubesCursor = module.default;
+        console.log('TubesCursor loaded:', TubesCursor);
+
+        const app = TubesCursor(canvas, {
+          tubes: {
+            colors: ["#f967fb", "#53bc28", "#6958d5"],
+            lights: {
+              intensity: 200,
+              colors: ["#83f36e", "#fe8a2e", "#ff008a", "#60aed5"]
+            }
+          }
+        });
+        console.log('TubesCursor app instance initialized:', app);
+      } catch (err) {
+        console.error('TubesCursor Error:', err);
+      }
+    }
+    init();
+  </script>
+</body>
+</html>
