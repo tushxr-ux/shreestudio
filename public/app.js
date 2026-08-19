@@ -844,15 +844,8 @@
 
   // ================= 3D Interactive Neon Tubes Cursor Background =================
   async function initTubesBackground() {
-    const canvas = document.getElementById('tubesCanvas');
-    if (!canvas || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-
-    function syncDimensions() {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-    }
-    syncDimensions();
-    window.addEventListener('resize', syncDimensions);
+    const container = document.getElementById('tubesContainer');
+    if (!container || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
     try {
       const module = await import('https://cdn.jsdelivr.net/npm/threejs-components@0.0.19/build/cursors/tubes1.min.js');
@@ -864,7 +857,7 @@
           .map(() => '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0'));
       };
 
-      const app = TubesCursor(canvas, {
+      const app = TubesCursor(container, {
         tubes: {
           colors: ["#f967fb", "#53bc28", "#6958d5"],
           lights: {
@@ -874,19 +867,7 @@
         }
       });
 
-      // Pass window pointer events to canvas
-      window.addEventListener('pointermove', (e) => {
-        const evt = new PointerEvent('pointermove', {
-          clientX: e.clientX,
-          clientY: e.clientY,
-          pageX: e.pageX,
-          pageY: e.pageY,
-          bubbles: true
-        });
-        canvas.dispatchEvent(evt);
-      });
-
-      window.addEventListener('click', (e) => {
+      document.body.addEventListener('click', (e) => {
         if (e.target.closest('button, a, input, select, textarea, .modal, .drawer, .pcard, .cat-card')) return;
         if (app && app.tubes) {
           app.tubes.setColors(randomColors(3));
