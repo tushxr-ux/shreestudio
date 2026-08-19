@@ -867,6 +867,19 @@
         }
       });
 
+      // OmniRoute Claude Diagnosis Fix: Pass global window mouse movements directly to Tubes instance
+      window.addEventListener('pointermove', (e) => {
+        if (app) {
+          if (app.tubes && typeof app.tubes.setMouse === 'function') {
+            app.tubes.setMouse(e.clientX, e.clientY);
+          }
+          if (app.pointer) {
+            app.pointer.x = (e.clientX / window.innerWidth) * 2 - 1;
+            app.pointer.y = -(e.clientY / window.innerHeight) * 2 + 1;
+          }
+        }
+      });
+
       document.body.addEventListener('click', (e) => {
         if (e.target.closest('button, a, input, select, textarea, .modal, .drawer, .pcard, .cat-card')) return;
         if (app && app.tubes) {
