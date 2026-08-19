@@ -553,12 +553,81 @@
 
   // ================= AUTH =================
   const authModal = $('#authModal');
-  function openAuth() {
+  let authMode = 'login';
+
+  function setAuthMode(mode) {
+    authMode = mode;
+    const tabLogin = $('#tabLoginBtn');
+    const tabSignup = $('#tabSignupBtn');
+    const nameField = $('#nameField');
+    const title = $('#authTitle');
+    const submitBtn = $('#authSubmitBtn');
     const errEl = $('#authError');
-    if (errEl) errEl.classList.remove('show');
+    if (errEl) { errEl.textContent = ''; errEl.classList.remove('show'); }
+
+    if (mode === 'signup') {
+      if (tabLogin) tabLogin.classList.remove('active');
+      if (tabSignup) tabSignup.classList.add('active');
+      if (nameField) nameField.style.display = 'block';
+      if (title) title.textContent = 'Create a ShreeStudio account';
+      if (submitBtn) submitBtn.textContent = 'Create account';
+    } else {
+      if (tabSignup) tabSignup.classList.remove('active');
+      if (tabLogin) tabLogin.classList.add('active');
+      if (nameField) nameField.style.display = 'none';
+      if (title) title.textContent = 'Sign in to ShreeStudio';
+      if (submitBtn) submitBtn.textContent = 'Sign in';
+    }
+  }
+
+  function openAuth(mode = 'login') {
+    setAuthMode(mode);
     openLayer(authModal);
   }
+
+  const tabLoginBtn = $('#tabLoginBtn');
+  const tabSignupBtn = $('#tabSignupBtn');
+  if (tabLoginBtn) tabLoginBtn.addEventListener('click', () => setAuthMode('login'));
+  if (tabSignupBtn) tabSignupBtn.addEventListener('click', () => setAuthMode('signup'));
   $('#closeAuth').addEventListener('click', () => closeLayer(authModal));
+
+  const authForm = $('#authForm');
+  if (authForm) {
+    authForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const errEl = $('#authError');
+      const submitBtn = $('#authSubmitBtn');
+      if (errEl) errEl.classList.remove('show');
+
+      const email = $('#authEmail').value.trim();
+      const password = $('#authPassword').value;
+      const name = $('#authName').value.trim();
+
+      if (authMode === 'signup' && !name) {
+        if (errEl) { errEl.textContent = 'Please enter your full name.'; errEl.classList.add('show'); }
+        return;
+      }
+
+      if (submitBtn) { submitBtn.disabled = true; submitBtn.innerHTML = '<span class="spinner"></span> Processing…'; }
+
+      try {
+        const endpoint = authMode === 'signup' ? '/auth/signup' : '/auth/login';
+        const body = authMode === 'signup' ? { name, email, password } : { email, password };
+        const data = await api(endpoint, { method: 'POST', body: JSON.stringify(body) });
+
+        state.user = data.user;
+        renderAuthArea();
+        closeLayer(authModal);
+        authForm.reset();
+        toast(authMode === 'signup' ? `Welcome, ${data.user.name.split(' ')[0]}!` : `Signed in as ${data.user.name}`, 'success');
+        refreshCart();
+      } catch (err) {
+        if (errEl) { errEl.textContent = err.message || 'Authentication failed.'; errEl.classList.add('show'); }
+      } finally {
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = authMode === 'signup' ? 'Create account' : 'Sign in'; }
+      }
+    });
+  }
 
   // Social Auth Handlers (Google & Apple)
   const googleBtn = $('#googleSignInBtn');
