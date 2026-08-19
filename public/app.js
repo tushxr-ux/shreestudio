@@ -857,12 +857,21 @@
           .map(() => '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0'));
       };
 
+      // Section-specific tube color palettes
+      const sectionPalettes = {
+        hero:      { tubes: ['#f967fb', '#6958d5', '#22e5ff'], lights: ['#f967fb', '#6958d5', '#ff3d81', '#22e5ff'] },
+        categories:{ tubes: ['#22e5ff', '#8b5cf6', '#ff3d81'], lights: ['#22e5ff', '#8b5cf6', '#ff3d81', '#ffb020'] },
+        products:  { tubes: ['#fe8a2e', '#53bc28', '#f967fb'], lights: ['#fe8a2e', '#53bc28', '#ffb020', '#ff3d81'] },
+        reviews:   { tubes: ['#60aed5', '#8b5cf6', '#ff3d81'], lights: ['#60aed5', '#8b5cf6', '#22e5ff', '#f967fb'] },
+      };
+      let currentSection = 'hero';
+
       const app = TubesCursor(canvas, {
         tubes: {
-          colors: ["#f967fb", "#53bc28", "#6958d5"],
+          colors: sectionPalettes.hero.tubes,
           lights: {
             intensity: 200,
-            colors: ["#83f36e", "#fe8a2e", "#ff008a", "#60aed5"]
+            colors: sectionPalettes.hero.lights
           }
         }
       });
@@ -883,14 +892,93 @@
           app.tubes.setLightsColors(randomColors(4));
         }
       });
+
+      // Scroll-linked: tube fade + section color switch + scroll progress bar
+      const wrap = document.getElementById('tubesCanvasWrap');
+      const progressBar = document.getElementById('scroll-progress');
+      const sectionMap = [
+        { id: 'top',       key: 'hero' },
+        { id: 'categories',key: 'categories' },
+        { id: 'products',  key: 'products' },
+        { id: 'reviews',   key: 'reviews' },
+      ];
+
+      let ticking = false;
+      window.addEventListener('scroll', () => {
+        if (ticking) return;
+        ticking = true;
+        requestAnimationFrame(() => {
+          const scrollY = window.scrollY;
+          const docH = document.documentElement.scrollHeight - window.innerHeight;
+
+          // Scroll progress bar
+          if (progressBar) progressBar.style.width = (scrollY / docH * 100) + '%';
+
+          // Tube fade: full opacity in hero, dims to 0.25 as user scrolls
+          if (wrap) {
+            const fade = Math.max(0.22, 1 - scrollY / (window.innerHeight * 1.2));
+            wrap.style.opacity = fade;
+          }
+
+          // Section color switching
+          if (app && app.tubes) {
+            let activeKey = 'hero';
+            for (const { id, key } of sectionMap) {
+              const el = document.getElementById(id) || document.querySelector(`[data-scroll="${id}"]`);
+              if (el) {
+                const rect = el.getBoundingClientRect();
+                if (rect.top <= window.innerHeight * 0.4) activeKey = key;
+              }
+            }
+            if (activeKey !== currentSection) {
+              currentSection = activeKey;
+              const p = sectionPalettes[activeKey];
+              app.tubes.setColors(p.tubes);
+              app.tubes.setLightsColors(p.lights);
+            }
+          }
+          ticking = false;
+        });
+      }, { passive: true });
+
     } catch (err) {
       console.warn('Could not initialize 3D tubes background:', err);
     }
   }
 
+  // ================= Stat counter animation =================
+  function initStatCounters() {
+    const stats = document.querySelectorAll('.hstat b');
+    if (!stats.length) return;
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (!entry.isIntersecting) return;
+        const el = entry.target;
+        const raw = el.textContent.trim();         // e.g. "1,200+" or "40K+"
+        const suffix = raw.replace(/[0-9,]/g, ''); // "+", "K+", "/5"
+        const num = parseFloat(raw.replace(/[^0-9.]/g, ''));
+        if (isNaN(num)) return;
+        let start = null;
+        const duration = 1400;
+        const step = (ts) => {
+          if (!start) start = ts;
+          const progress = Math.min((ts - start) / duration, 1);
+          const eased = 1 - Math.pow(1 - progress, 3);
+          const current = Math.round(eased * num);
+          el.textContent = current.toLocaleString() + suffix;
+          if (progress < 1) requestAnimationFrame(step);
+        };
+        requestAnimationFrame(step);
+        observer.unobserve(el);
+      });
+    }, { threshold: 0.5 });
+    stats.forEach(el => observer.observe(el));
+  }
+
   // ================= boot =================
   (async function init() {
     initTubesBackground();
+    initStatCounters();
     await Promise.all([loadCurrentUser(), loadCategories(), loadProducts(), refreshCart()]);
   })();
 })();
