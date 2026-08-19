@@ -858,6 +858,7 @@
       };
 
       const app = TubesCursor(canvas, {
+        size: "window",
         tubes: {
           colors: ["#f967fb", "#53bc28", "#6958d5"],
           lights: {
@@ -866,15 +867,6 @@
           }
         }
       });
-
-      // Forward window cursor movements to canvas element
-      const forwardPointer = (e) => {
-        canvas.dispatchEvent(new PointerEvent('pointerenter', { clientX: e.clientX, clientY: e.clientY, bubbles: true }));
-        canvas.dispatchEvent(new PointerEvent('pointerover', { clientX: e.clientX, clientY: e.clientY, bubbles: true }));
-        canvas.dispatchEvent(new PointerEvent('pointermove', { clientX: e.clientX, clientY: e.clientY, bubbles: true }));
-      };
-      window.addEventListener('pointermove', forwardPointer);
-      window.addEventListener('mousemove', forwardPointer);
 
       document.body.addEventListener('click', (e) => {
         if (e.target.closest('button, a, input, select, textarea, .modal, .drawer, .pcard, .cat-card')) return;
