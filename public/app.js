@@ -485,7 +485,7 @@
               renderCartCount();
               renderCart();
               closeLayer(cartDrawer);
-              showOrderSuccess(verifyRes.order);
+              showOrderSuccess(verifyRes.order, verifyRes.emailSent, verifyRes.userEmail);
             } catch (vErr) {
               toast(vErr.message, 'error');
             }
@@ -521,7 +521,7 @@
         renderCartCount();
         renderCart();
         closeLayer(cartDrawer);
-        showOrderSuccess(data.order);
+        showOrderSuccess(data.order, true, state.user ? state.user.email : '');
       }
     } catch (err) {
       toast(err.message, 'error');
@@ -530,11 +530,13 @@
   }
 
   const orderModal = $('#orderModal');
-  function showOrderSuccess(order) {
+  function showOrderSuccess(order, emailSent = true, userEmail = '') {
     const paymentMethodLabel = order.paymentId ? `Paid via Razorpay (${order.paymentId.slice(-10)})` : 'Paid';
+    const emailNotice = userEmail || (state.user ? state.user.email : '');
     $('#orderBody').innerHTML = `
       <div class="order-success">
         <div class="check">✓</div>
+        ${emailNotice ? `<div class="email-sent-badge"><span class="dot"></span><span>Receipt sent to ${escapeHtml(emailNotice)}</span></div>` : ''}
         <h3>Order confirmed</h3>
         <p>Order #${escapeHtml(order.id.slice(-8))} — ${paymentMethodLabel}</p>
         <div class="order-items">
@@ -543,7 +545,7 @@
             .join('')}
           <div class="oi-total"><span>Total</span><span>${money(order.subtotal)}</span></div>
         </div>
-        <button class="btn btn-primary" style="width:100%;" id="orderCloseBtn">Continue browsing</button>
+        <button class="btn btn-primary" style="width:100%;" id="orderCloseBtn">Download Presets Now</button>
       </div>`;
     openLayer(orderModal);
     $('#orderCloseBtn').addEventListener('click', () => closeLayer(orderModal));

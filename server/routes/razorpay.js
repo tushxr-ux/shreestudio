@@ -3,6 +3,7 @@ const crypto = require('crypto');
 const Razorpay = require('razorpay');
 const { read, write } = require('../db');
 const { requireAuth } = require('../auth');
+const { sendOrderConfirmationEmail } = require('../emailService');
 
 const router = express.Router();
 const CART_COOKIE = 'shreestudio_cart_id';
@@ -147,7 +148,27 @@ router.post('/verify-payment', requireAuth, async (req, res) => {
     await write('carts', carts);
     res.clearCookie(CART_COOKIE);
 
-    res.status(201).json({ success: true, order: newOrder });
+    // Fetch user profile to send confirmation email
+    const users = read('users');
+    const user = users.find((u) => u.id === req.user.sub);
+    const userEmail = user ? user.email : req.user.email;
+    const userName = user ? user.name : (req.user.name || 'Creator');
+
+    let emailResult = { success: false };
+    if (userEmail) {
+      emailResult = await sendOrderConfirmationEmail({
+        userEmail,
+        userName,
+        order: newOrder,
+      });
+    }
+
+    res.status(201).json({
+      success: true,
+      order: newOrder,
+      emailSent: Boolean(emailResult.success),
+      userEmail,
+    });
   } catch (err) {
     console.error('Error verifying payment:', err);
     res.status(500).json({ error: err.message || 'Payment verification failed.' });

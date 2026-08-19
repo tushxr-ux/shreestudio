@@ -1,6 +1,7 @@
 const express = require('express');
 const { read, write } = require('../db');
 const { requireAuth } = require('../auth');
+const { sendOrderConfirmationEmail } = require('../emailService');
 
 const router = express.Router();
 const CART_COOKIE = 'shreestudio_cart_id';
@@ -24,7 +25,7 @@ function hydrateCart(cart) {
   return { items, subtotal };
 }
 
-// POST /api/orders — checkout (mock payment: instant "success")
+// POST /api/orders — checkout
 router.post('/', requireAuth, async (req, res) => {
   const cartId = 'user:' + req.user.sub;
   const carts = read('carts');
@@ -44,19 +45,34 @@ router.post('/', requireAuth, async (req, res) => {
     userId: req.user.sub,
     items,
     subtotal,
-    status: 'paid', // this is a demo store — no real payment processor is wired up
+    status: 'paid',
     createdAt: new Date().toISOString(),
     downloadReady: true,
   };
   orders.push(order);
   await write('orders', orders);
 
-  // clear the cart (both guest cookie cart and user cart, to be safe)
+  // clear the cart
   cart.items = [];
   await write('carts', carts);
   res.clearCookie(CART_COOKIE);
 
-  res.status(201).json({ order });
+  // Send purchase confirmation email
+  const users = read('users');
+  const user = users.find((u) => u.id === req.user.sub);
+  const userEmail = user ? user.email : req.user.email;
+  const userName = user ? user.name : (req.user.name || 'Creator');
+
+  let emailResult = { success: false };
+  if (userEmail) {
+    emailResult = await sendOrderConfirmationEmail({
+      userEmail,
+      userName,
+      order,
+    });
+  }
+
+  res.status(201).json({ order, emailSent: Boolean(emailResult.success), userEmail });
 });
 
 // GET /api/orders — order history for the signed-in user
