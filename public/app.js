@@ -622,7 +622,18 @@
         toast(authMode === 'signup' ? `Welcome, ${data.user.name.split(' ')[0]}!` : `Signed in as ${data.user.name}`, 'success');
         refreshCart();
       } catch (err) {
-        if (errEl) { errEl.textContent = err.message || 'Authentication failed.'; errEl.classList.add('show'); }
+        if (errEl) {
+          if (authMode === 'login') {
+            errEl.innerHTML = `${escapeHtml(err.message || 'Incorrect email or password.')}<br><button type="button" id="autoSwitchSignup" style="background:none; border:none; color:var(--cyan); text-decoration:underline; font-size:12.5px; cursor:pointer; margin-top:6px; display:inline-block;">New here? Click to Create Account</button>`;
+            const switchBtn = $('#autoSwitchSignup', errEl);
+            if (switchBtn) {
+              switchBtn.addEventListener('click', () => setAuthMode('signup'));
+            }
+          } else {
+            errEl.textContent = err.message || 'Authentication failed.';
+          }
+          errEl.classList.add('show');
+        }
       } finally {
         if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = authMode === 'signup' ? 'Create account' : 'Sign in'; }
       }
