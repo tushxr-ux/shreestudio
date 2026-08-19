@@ -858,7 +858,6 @@
       };
 
       const app = TubesCursor(canvas, {
-        size: "window",
         tubes: {
           colors: ["#f967fb", "#53bc28", "#6958d5"],
           lights: {
