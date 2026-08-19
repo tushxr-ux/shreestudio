@@ -44,7 +44,7 @@ input, select, textarea{ font-family:inherit; }
 }
 .tubes-canvas{
   position:fixed; inset:0; width:100vw; height:100vh;
-  pointer-events:none; z-index:0; opacity:0.85; touch-action:none;
+  z-index:0; touch-action:none;
 }
 .noise{
   position:fixed; inset:0; z-index:1; pointer-events:none; opacity:0.035; mix-blend-mode:overlay;
