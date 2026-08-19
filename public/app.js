@@ -848,7 +848,7 @@
     if (!canvas || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
     try {
-      const module = await import('/tubes1.min.js');
+      const module = await import('https://cdn.jsdelivr.net/npm/threejs-components@0.0.19/build/cursors/tubes1.min.js');
       const TubesCursor = module.default;
 
       const randomColors = (count) => {
