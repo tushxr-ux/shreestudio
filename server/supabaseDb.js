@@ -141,10 +141,34 @@ async function getSignedDownloadUrl(filePath, expiresInSeconds = 86400) {
   return null;
 }
 
+async function updateProductPreview(id, previewUrl) {
+  // Update local DB
+  const localProducts = localDb.read('products');
+  const prod = localProducts.find((p) => p.id === id || p.slug === id);
+  if (prod) {
+    prod.previewVideo = previewUrl || null;
+    await localDb.write('products', localProducts);
+  }
+
+  // Update Supabase if configured
+  if (isConfigured() && prod) {
+    try {
+      await supabase
+        .from('products')
+        .update({ preview_video: previewUrl || null, updated_at: new Date().toISOString() })
+        .eq('id', prod.id);
+    } catch (err) {
+      console.warn('Supabase updateProductPreview sync error:', err.message);
+    }
+  }
+  return prod;
+}
+
 module.exports = {
   getProducts,
   getProductByIdOrSlug,
   insertProduct,
+  updateProductPreview,
   insertOrder,
   getSignedDownloadUrl,
   toCamelCase,

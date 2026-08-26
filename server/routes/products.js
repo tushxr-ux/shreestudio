@@ -2,7 +2,7 @@ const express = require('express');
 const { read, write } = require('../db');
 const { requireAuth, requireAdmin } = require('../auth');
 const { handlePreviewUpload, publicPreviewUrl, removePreviewFile } = require('../upload');
-const { insertProduct } = require('../supabaseDb');
+const { insertProduct, updateProductPreview } = require('../supabaseDb');
 
 const router = express.Router();
 
@@ -162,9 +162,8 @@ router.post('/:id/preview', requireAdmin, handlePreviewUpload, async (req, res) 
     return res.status(404).json({ error: 'Product not found.' });
   }
   removePreviewFile(product.previewVideo);
-  product.previewVideo = publicPreviewUrl(req.file.filename);
-  await write('products', products);
-  res.json({ product });
+  const updatedProduct = await updateProductPreview(product.id, publicPreviewUrl(req.file.filename));
+  res.json({ product: updatedProduct || product });
 });
 
 // DELETE /api/products/:id/preview — remove a preview video (admin)
@@ -173,9 +172,8 @@ router.delete('/:id/preview', requireAdmin, async (req, res) => {
   const product = findProduct(products, req.params.id);
   if (!product) return res.status(404).json({ error: 'Product not found.' });
   removePreviewFile(product.previewVideo);
-  product.previewVideo = null;
-  await write('products', products);
-  res.json({ product });
+  const updatedProduct = await updateProductPreview(product.id, null);
+  res.json({ product: updatedProduct || product });
 });
 
 module.exports = router;

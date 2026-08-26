@@ -196,6 +196,7 @@
   }
 
   function productCardHtml(p) {
+    const isAdmin = Boolean(state.user && state.user.isAdmin);
     return `
       <div class="prod-card" data-id="${p.id}">
         <div class="prod-media" style="background:${p.gradient}" data-quickview="${p.id}">
@@ -207,9 +208,23 @@
           <span class="prod-cat">${escapeHtml(p.categoryLabel)}</span>
           <h4 data-quickview="${p.id}">${escapeHtml(p.name)}</h4>
           <div class="prod-rating"><span class="stars">${starRow(p.rating)}</span> ${p.rating.toFixed(1)} · ${p.reviewCount} reviews</div>
-          <div class="prod-foot">
-            <span class="price">${money(p.price)}${p.compareAtPrice ? `<small>${money(p.compareAtPrice)}</small>` : ''}</span>
-            <button class="add-btn" data-add="${p.id}">Add to cart</button>
+          <div class="prod-foot-stack">
+            <div class="prod-foot">
+              <span class="price">${money(p.price)}${p.compareAtPrice ? `<small>${money(p.compareAtPrice)}</small>` : ''}</span>
+              <button class="add-btn" data-add="${p.id}">Add to cart</button>
+            </div>
+            <button type="button" class="btn-see-preview ${p.previewVideo ? 'has-video' : ''}" data-see-preview="${p.id}">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              See Preview
+            </button>
+            ${isAdmin ? `
+            <div class="admin-card-bar">
+              <span style="color:var(--text-faint);">Admin</span>
+              <label class="admin-card-btn">
+                ${p.previewVideo ? '📹 Replace video' : '+ Upload video'}
+                <input type="file" accept="video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov" data-admin-card-upload="${p.id}" hidden>
+              </label>
+            </div>` : ''}
           </div>
         </div>
       </div>`;
@@ -244,6 +259,29 @@
       });
       $$('[data-quickview]', grid).forEach((el) => {
         el.addEventListener('click', () => openQuickview(el.dataset.quickview));
+      });
+      $$('[data-see-preview]', grid).forEach((btn) => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          openVideoPreview(btn.dataset.seePreview);
+        });
+      });
+      $$('[data-admin-card-upload]', grid).forEach((input) => {
+        input.addEventListener('change', async (e) => {
+          e.stopPropagation();
+          const file = input.files && input.files[0];
+          if (!file) return;
+          const formData = new FormData();
+          formData.append('previewVideo', file);
+          try {
+            toast('Uploading preview video…', 'info');
+            await api(`/products/${input.dataset.adminCardUpload}/preview`, { method: 'POST', body: formData });
+            toast('Preview video saved successfully!', 'success');
+            await loadProducts();
+          } catch (err) {
+            toast(err.message, 'error');
+          }
+        });
       });
     } catch (err) {
       grid.innerHTML = `<div class="empty-state">Couldn't load products: ${escapeHtml(err.message)}</div>`;
@@ -297,6 +335,7 @@
           .join('')
       : '<p style="color:var(--text-faint); font-size:13px;">No reviews yet — be the first to leave one.</p>';
 
+    const isAdmin = Boolean(state.user && state.user.isAdmin);
     const qvMedia = p.previewVideo
       ? `<video class="qv-video" controls playsinline preload="metadata" src="${escapeHtml(p.previewVideo)}"></video>`
       : '';
@@ -323,6 +362,18 @@
             <button class="qty-btn" id="qvPlus">+</button>
           </div>
           <button class="btn btn-primary" style="width:100%;" id="qvAdd">Add to cart</button>
+          <button type="button" class="btn-see-preview ${p.previewVideo ? 'has-video' : ''}" style="margin-top:10px;" id="qvSeePreviewBtn">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            See Full Video Preview
+          </button>
+          ${isAdmin ? `
+          <div style="margin-top:12px; padding:10px 12px; background:var(--bg-soft); border:1px dashed var(--line); border-radius:10px; display:flex; justify-content:space-between; align-items:center; font-size:12px;">
+            <span style="color:var(--text-faint);">Admin Video:</span>
+            <label style="color:var(--cyan); cursor:pointer; text-decoration:underline; font-family:var(--ff-mono);">
+              ${p.previewVideo ? '📹 Replace Video' : '+ Upload Video'}
+              <input type="file" accept="video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov" id="qvAdminUploadInput" hidden>
+            </label>
+          </div>` : ''}
 
           <div class="reviews-list">${reviewsHtml}</div>
           <form id="reviewForm" style="margin-top:16px;">
@@ -347,6 +398,33 @@
     $('#qvMinus').addEventListener('click', () => { qty = Math.max(1, qty - 1); qtyEl.textContent = qty; });
     $('#qvPlus').addEventListener('click', () => { qty = Math.min(20, qty + 1); qtyEl.textContent = qty; });
     $('#qvAdd').addEventListener('click', () => addToCart(p.id, qty));
+
+    const qvPreviewBtn = $('#qvSeePreviewBtn');
+    if (qvPreviewBtn) {
+      qvPreviewBtn.addEventListener('click', () => {
+        closeLayer(quickviewModal);
+        openVideoPreview(p.id);
+      });
+    }
+
+    const qvUploadInput = $('#qvAdminUploadInput');
+    if (qvUploadInput) {
+      qvUploadInput.addEventListener('change', async () => {
+        const file = qvUploadInput.files && qvUploadInput.files[0];
+        if (!file) return;
+        const formData = new FormData();
+        formData.append('previewVideo', file);
+        try {
+          toast('Uploading preview video…', 'info');
+          await api(`/products/${p.id}/preview`, { method: 'POST', body: formData });
+          toast('Preview video saved!', 'success');
+          await loadProducts();
+          openQuickview(p.id);
+        } catch (err) {
+          toast(err.message, 'error');
+        }
+      });
+    }
 
     $('#reviewForm').addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -373,6 +451,109 @@
     $$('video', quickviewModal).forEach((v) => v.pause());
     closeLayer(quickviewModal);
   });
+
+  // ================= DEDICATED VIDEO PREVIEW MODAL =================
+  const videoPreviewModal = $('#videoPreviewModal');
+  const closeVideoPreviewBtn = $('#closeVideoPreview');
+  if (closeVideoPreviewBtn && videoPreviewModal) {
+    closeVideoPreviewBtn.addEventListener('click', () => {
+      $$('video', videoPreviewModal).forEach((v) => v.pause());
+      closeLayer(videoPreviewModal);
+    });
+  }
+
+  async function openVideoPreview(id) {
+    if (!videoPreviewModal) return;
+    let p = state.products.find((item) => item.id === id || item.slug === id);
+    if (!p) {
+      try {
+        const data = await api('/products/' + id);
+        p = data.product;
+      } catch (_e) {
+        toast('Product not found.', 'error');
+        return;
+      }
+    }
+    if (!p) return;
+
+    const isAdmin = Boolean(state.user && state.user.isAdmin);
+    const body = $('#videoPreviewBody');
+
+    body.innerHTML = `
+      <div class="cinema-view">
+        <div class="cinema-player-box" style="background:${p.gradient}">
+          ${p.previewVideo ? `
+            <video controls autoplay playsinline loop preload="auto" src="${escapeHtml(p.previewVideo)}"></video>
+          ` : `
+            <div class="cinema-no-video">
+              <div class="cine-badge">⚡ Preset Video Preview</div>
+              <h4 style="font-family:var(--ff-display); font-size:22px; margin-bottom:8px; color:#fff;">${escapeHtml(p.name)}</h4>
+              <p style="color:var(--text-dim); font-size:13.5px; max-width:320px; margin-bottom:16px;">
+                A demo video preview is being rendered for this preset pack. You can still purchase and download the files instantly.
+              </p>
+              ${isAdmin ? `
+                <label class="btn btn-ghost sm" style="cursor:pointer; font-size:12px; border-radius:8px;">
+                  + Upload Video for this pack
+                  <input type="file" accept="video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov" id="modalPreviewUploadInput" hidden>
+                </label>
+              ` : ''}
+            </div>
+          `}
+        </div>
+        <div class="cinema-sidebar">
+          <span class="cat">${escapeHtml(p.categoryLabel)}</span>
+          <h3>${escapeHtml(p.name)}</h3>
+          <span class="tagline-pill">${escapeHtml(p.tagline || 'Pro Edition')}</span>
+          <p class="desc">${escapeHtml(p.description)}</p>
+          
+          <div class="cinema-meta-grid">
+            <div><span>Presets:</span><b>${p.itemCount} Items</b></div>
+            <div><span>Format:</span><b>${escapeHtml(p.format)}</b></div>
+            <div><span>Rating:</span><b>${p.rating.toFixed(1)} ★ (${p.reviewCount})</b></div>
+            <div><span>Access:</span><b>Instant .ZIP</b></div>
+          </div>
+
+          <div class="cinema-foot">
+            <div class="cinema-price-row">
+              <span class="price">${money(p.price)}${p.compareAtPrice ? `<small style="color:var(--text-faint); text-decoration:line-through; font-size:13px; margin-left:6px;">${money(p.compareAtPrice)}</small>` : ''}</span>
+              <span style="font-size:12px; color:var(--emerald); font-weight:500;">✓ Instant Delivery</span>
+            </div>
+            <button class="btn btn-primary" style="width:100%;" id="cinemaAddBtn">Add to cart — ${money(p.price)}</button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    openLayer(videoPreviewModal);
+
+    const addBtn = $('#cinemaAddBtn', body);
+    if (addBtn) {
+      addBtn.addEventListener('click', () => {
+        addToCart(p.id, 1);
+        $$('video', videoPreviewModal).forEach((v) => v.pause());
+        closeLayer(videoPreviewModal);
+      });
+    }
+
+    const uploadInput = $('#modalPreviewUploadInput', body);
+    if (uploadInput) {
+      uploadInput.addEventListener('change', async () => {
+        const file = uploadInput.files && uploadInput.files[0];
+        if (!file) return;
+        const formData = new FormData();
+        formData.append('previewVideo', file);
+        try {
+          toast('Uploading preview video…', 'info');
+          await api(`/products/${p.id}/preview`, { method: 'POST', body: formData });
+          toast('Preview video uploaded successfully!', 'success');
+          await loadProducts();
+          openVideoPreview(p.id);
+        } catch (err) {
+          toast(err.message, 'error');
+        }
+      });
+    }
+  }
 
   // ================= CART =================
   const cartDrawer = $('#cartDrawer');
@@ -440,7 +621,7 @@
     $$('[data-cart-preview]', body).forEach((btn) =>
       btn.addEventListener('click', () => {
         closeLayer(cartDrawer);
-        openQuickview(btn.dataset.cartPreview);
+        openVideoPreview(btn.dataset.cartPreview);
       })
     );
     $('#checkoutBtn').addEventListener('click', checkout);
@@ -671,6 +852,7 @@
         authForm.reset();
         toast(authMode === 'signup' ? `Welcome, ${data.user.name.split(' ')[0]}!` : `Signed in as ${data.user.name}`, 'success');
         refreshCart();
+        loadProducts();
       } catch (err) {
         if (errEl) {
           if (authMode === 'login') {
@@ -813,6 +995,7 @@
     renderAuthArea();
     toast('Signed out', 'info');
     refreshCart();
+    loadProducts();
   }
 
   async function loadCurrentUser() {
@@ -823,6 +1006,7 @@
       state.user = null;
     }
     renderAuthArea();
+    loadProducts();
   }
 
   // ================= ADD PROJECT / PACK =================
