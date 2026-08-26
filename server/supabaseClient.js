@@ -1,14 +1,27 @@
 const { createClient } = require('@supabase/supabase-js');
 
 const supabaseUrl = process.env.SUPABASE_URL || '';
-const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || '';
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY && !process.env.SUPABASE_SERVICE_ROLE_KEY.includes('your-supabase')
+  ? process.env.SUPABASE_SERVICE_ROLE_KEY
+  : process.env.SUPABASE_ANON_KEY || '';
 
 let supabase = null;
 
-if (supabaseUrl && supabaseUrl.includes('supabase.co') && supabaseAnonKey && !supabaseAnonKey.includes('your-supabase')) {
+if (
+  supabaseUrl &&
+  supabaseUrl.includes('supabase.co') &&
+  supabaseKey &&
+  !supabaseKey.includes('your-supabase') &&
+  !supabaseKey.includes('placeholder')
+) {
   try {
-    supabase = createClient(supabaseUrl, supabaseAnonKey);
-    console.log('⚡ Supabase client initialized successfully.');
+    supabase = createClient(supabaseUrl, supabaseKey, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+      },
+    });
+    console.log('⚡ Supabase PostgreSQL & Storage client initialized successfully.');
   } catch (err) {
     console.warn('⚠️ Could not initialize Supabase client:', err.message);
   }

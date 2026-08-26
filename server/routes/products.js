@@ -2,6 +2,7 @@ const express = require('express');
 const { read, write } = require('../db');
 const { requireAuth, requireAdmin } = require('../auth');
 const { handlePreviewUpload, publicPreviewUrl, removePreviewFile } = require('../upload');
+const { insertProduct } = require('../supabaseDb');
 
 const router = express.Router();
 
@@ -144,8 +145,7 @@ router.post('/', requireAdmin, handlePreviewUpload, async (req, res) => {
     createdAt: new Date().toISOString(),
   };
 
-  products.unshift(newProduct);
-  await write('products', products);
+  await insertProduct(newProduct);
 
   res.status(201).json({ product: newProduct });
 });

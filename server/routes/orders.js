@@ -2,6 +2,7 @@ const express = require('express');
 const { read, write } = require('../db');
 const { requireAuth } = require('../auth');
 const { sendOrderConfirmationEmail } = require('../emailService');
+const { insertOrder } = require('../supabaseDb');
 
 const router = express.Router();
 const CART_COOKIE = 'shreestudio_cart_id';
@@ -39,7 +40,6 @@ router.post('/', requireAuth, async (req, res) => {
     return res.status(400).json({ error: 'Your cart is empty.' });
   }
 
-  const orders = read('orders');
   const order = {
     id: 'ord_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
     userId: req.user.sub,
@@ -49,8 +49,7 @@ router.post('/', requireAuth, async (req, res) => {
     createdAt: new Date().toISOString(),
     downloadReady: true,
   };
-  orders.push(order);
-  await write('orders', orders);
+  await insertOrder(order);
 
   // clear the cart
   cart.items = [];

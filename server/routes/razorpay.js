@@ -4,6 +4,7 @@ const Razorpay = require('razorpay');
 const { read, write } = require('../db');
 const { requireAuth } = require('../auth');
 const { sendOrderConfirmationEmail } = require('../emailService');
+const { insertOrder } = require('../supabaseDb');
 
 const router = express.Router();
 const CART_COOKIE = 'shreestudio_cart_id';
@@ -141,9 +142,6 @@ router.post('/verify-payment', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'Cart not found for user.' });
     }
 
-    const { items, subtotal } = hydrateCart(cart);
-    const orders = read('orders');
-
     const newOrder = {
       id: 'ord_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
       userId: req.user.sub,
@@ -157,8 +155,7 @@ router.post('/verify-payment', requireAuth, async (req, res) => {
       downloadReady: true,
     };
 
-    orders.push(newOrder);
-    await write('orders', orders);
+    await insertOrder(newOrder);
 
     // Empty user cart
     cart.items = [];
