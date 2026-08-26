@@ -166,6 +166,144 @@ async function updateProductPreview(id, previewUrl) {
   return prod;
 }
 
+// ── USERS & ROLES ───────────────────────────────────────────────────
+async function getUserByEmail(email) {
+  if (!email) return null;
+  const cleanEmail = String(email).toLowerCase().trim();
+
+  // Check Supabase PostgreSQL first if configured
+  if (isConfigured()) {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('email', cleanEmail)
+        .maybeSingle();
+
+      if (!error && data) {
+        return {
+          id: data.id,
+          name: data.name,
+          email: data.email,
+          role: data.role || 'customer',
+          isAdmin: Boolean(data.is_admin || data.role === 'admin'),
+          passwordHash: data.password_hash || '',
+          createdAt: data.created_at,
+        };
+      }
+    } catch (err) {
+      console.warn('Supabase getUserByEmail error:', err.message);
+    }
+  }
+
+  // Fallback to local users.json
+  const localUsers = localDb.read('users');
+  const user = localUsers.find((u) => u.email && u.email.toLowerCase() === cleanEmail);
+  if (user) {
+    return {
+      ...user,
+      isAdmin: Boolean(user.role === 'admin' || user.isAdmin),
+    };
+  }
+  return null;
+}
+
+async function getUserById(id) {
+  if (!id) return null;
+
+  if (isConfigured()) {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (!error && data) {
+        return {
+          id: data.id,
+          name: data.name,
+          email: data.email,
+          role: data.role || 'customer',
+          isAdmin: Boolean(data.is_admin || data.role === 'admin'),
+          passwordHash: data.password_hash || '',
+          createdAt: data.created_at,
+        };
+      }
+    } catch (err) {
+      console.warn('Supabase getUserById error:', err.message);
+    }
+  }
+
+  const localUsers = localDb.read('users');
+  const user = localUsers.find((u) => u.id === id);
+  if (user) {
+    return {
+      ...user,
+      isAdmin: Boolean(user.role === 'admin' || user.isAdmin),
+    };
+  }
+  return null;
+}
+
+async function upsertUser(user) {
+  if (!user || !user.email) return null;
+  const cleanEmail = String(user.email).toLowerCase().trim();
+
+  // Check if existing user in Supabase to preserve any admin role granted via Supabase dashboard
+  let existingSupabase = null;
+  if (isConfigured()) {
+    try {
+      const { data } = await supabase.from('users').select('*').eq('email', cleanEmail).maybeSingle();
+      existingSupabase = data;
+    } catch (_e) {}
+  }
+
+  const role = existingSupabase?.role || user.role || 'customer';
+  const isAdmin = Boolean(existingSupabase?.is_admin || existingSupabase?.role === 'admin' || user.isAdmin || role === 'admin');
+
+  const formatted = {
+    id: user.id || existingSupabase?.id || ('u_' + Date.now().toString(36)),
+    name: user.name || existingSupabase?.name || cleanEmail.split('@')[0],
+    email: cleanEmail,
+    role,
+    isAdmin,
+    passwordHash: user.passwordHash || existingSupabase?.password_hash || '',
+    createdAt: user.createdAt || existingSupabase?.created_at || new Date().toISOString(),
+  };
+
+  // Sync to local JSON
+  const localUsers = localDb.read('users');
+  const localIdx = localUsers.findIndex((u) => u.email && u.email.toLowerCase() === cleanEmail);
+  if (localIdx >= 0) {
+    localUsers[localIdx] = { ...localUsers[localIdx], ...formatted };
+  } else {
+    localUsers.push(formatted);
+  }
+  await localDb.write('users', localUsers);
+
+  // Sync to Supabase PostgreSQL table
+  if (isConfigured()) {
+    try {
+      await supabase.from('users').upsert([
+        {
+          id: formatted.id,
+          name: formatted.name,
+          email: formatted.email,
+          role: formatted.role,
+          is_admin: formatted.isAdmin,
+          password_hash: formatted.passwordHash || '',
+          created_at: formatted.createdAt,
+        },
+      ], { onConflict: 'email' });
+    } catch (err) {
+      console.warn('Supabase upsertUser sync error:', err.message);
+    }
+  }
+
+  return formatted;
+}
+
 module.exports = {
   getProducts,
   getProductByIdOrSlug,
@@ -173,6 +311,9 @@ module.exports = {
   updateProductPreview,
   insertOrder,
   getSignedDownloadUrl,
+  getUserByEmail,
+  getUserById,
+  upsertUser,
   toCamelCase,
   toSnakeCase,
 };

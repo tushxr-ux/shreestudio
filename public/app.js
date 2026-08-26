@@ -1099,6 +1099,29 @@
     loadProducts();
   }
 
+  async function syncOAuthSession(user) {
+    if (!user || !user.email) return;
+    try {
+      const data = await api('/auth/oauth-sync', {
+        method: 'POST',
+        body: JSON.stringify({
+          id: user.id,
+          email: user.email,
+          name: user.user_metadata?.full_name || user.user_metadata?.name || user.email.split('@')[0],
+        }),
+      });
+      if (data && data.user) {
+        state.user = data.user;
+        renderAuthArea();
+        loadProducts();
+        refreshCart();
+        if (window.location.hash && (window.location.hash.includes('access_token') || window.location.hash.includes('error'))) {
+          window.history.replaceState(null, '', window.location.pathname + window.location.search);
+        }
+      }
+    } catch (_e) {}
+  }
+
   async function loadCurrentUser() {
     try {
       const data = await api('/auth/me');
@@ -1107,20 +1130,20 @@
       state.user = null;
     }
 
-    if (!state.user && window.supabase && typeof window.supabase.createClient === 'function') {
+    if (window.supabase && typeof window.supabase.createClient === 'function') {
       try {
         const cfg = await api('/config');
         if (cfg.supabaseUrl && cfg.supabaseAnonKey) {
           const sb = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
           const { data: { session } } = await sb.auth.getSession();
-          if (session && session.user) {
-            state.user = {
-              id: session.user.id,
-              name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.email.split('@')[0],
-              email: session.user.email,
-              isAdmin: session.user.email === 'admin@shreestudio.com',
-            };
+          if (session && session.user && (!state.user || state.user.email !== session.user.email)) {
+            await syncOAuthSession(session.user);
           }
+          sb.auth.onAuthStateChange(async (_event, newSession) => {
+            if (newSession && newSession.user) {
+              await syncOAuthSession(newSession.user);
+            }
+          });
         }
       } catch (_sErr) {}
     }

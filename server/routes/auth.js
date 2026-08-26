@@ -1,12 +1,16 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
-const { read, write } = require('../db');
 const {
   signToken,
   setAuthCookie,
   clearAuthCookie,
   requireAuth,
 } = require('../auth');
+const {
+  getUserByEmail,
+  getUserById,
+  upsertUser,
+} = require('../supabaseDb');
 
 const router = express.Router();
 
@@ -27,13 +31,14 @@ function isStrongPassword(password) {
 }
 
 function formatUser(user) {
-  const adminEmail = (process.env.ADMIN_EMAIL || '').toLowerCase();
-  const isAdmin = Boolean(
-    user.role === 'admin' ||
-    user.isAdmin ||
-    (adminEmail && user.email.toLowerCase() === adminEmail)
-  );
-  return { id: user.id, name: user.name, email: user.email, isAdmin };
+  const isAdmin = Boolean(user.role === 'admin' || user.isAdmin || user.is_admin);
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role || (isAdmin ? 'admin' : 'customer'),
+    isAdmin,
+  };
 }
 
 // ── Signup ───────────────────────────────────────────────────────────
@@ -52,32 +57,25 @@ router.post('/signup', async (req, res) => {
     });
   }
 
-  const users = read('users');
-  if (users.some((u) => u.email.toLowerCase() === String(email).toLowerCase())) {
+  const existing = await getUserByEmail(email);
+  if (existing) {
     return res.status(409).json({ error: 'An account with that email already exists.' });
   }
 
-  // Admin determined solely by ADMIN_EMAIL env var — no auto-admin for first user
-  const adminEmail = (process.env.ADMIN_EMAIL || '').toLowerCase();
-  const isAdmin = Boolean(adminEmail && email.toLowerCase().trim() === adminEmail);
-
-  const passwordHash = await bcrypt.hash(password, 12); // bcrypt cost 12 (was 10)
-  const user = {
+  const passwordHash = await bcrypt.hash(password, 12);
+  const newUser = await upsertUser({
     id: 'u_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
     name: String(name).trim(),
     email: String(email).toLowerCase().trim(),
-    role: isAdmin ? 'admin' : 'customer',
-    isAdmin,
+    role: 'customer',
+    isAdmin: false,
     passwordHash,
     createdAt: new Date().toISOString(),
-  };
-  users.push(user);
-  await write('users', users);
+  });
 
-  const token = signToken(user);
+  const token = signToken(newUser);
   setAuthCookie(res, token);
-  // Token is in the httpOnly cookie — don't also return it in the body
-  res.status(201).json({ user: formatUser(user) });
+  res.status(201).json({ user: formatUser(newUser) });
 });
 
 // ── Login ────────────────────────────────────────────────────────────
@@ -86,16 +84,15 @@ router.post('/login', async (req, res) => {
   if (!email || !password) {
     return res.status(400).json({ error: 'Email and password are required.' });
   }
-  const users = read('users');
-  const user = users.find((u) => u.email.toLowerCase() === String(email).toLowerCase());
-  if (!user) return res.status(401).json({ error: 'Incorrect email or password.' });
+
+  const user = await getUserByEmail(email);
+  if (!user || !user.passwordHash) return res.status(401).json({ error: 'Incorrect email or password.' });
 
   const ok = await bcrypt.compare(password, user.passwordHash);
   if (!ok) return res.status(401).json({ error: 'Incorrect email or password.' });
 
   const token = signToken(user);
   setAuthCookie(res, token);
-  // Token is in the httpOnly cookie — don't also return it in the body
   res.json({ user: formatUser(user) });
 });
 
@@ -106,10 +103,35 @@ router.post('/logout', (_req, res) => {
 });
 
 // ── Current user ─────────────────────────────────────────────────────
-router.get('/me', requireAuth, (req, res) => {
-  const users = read('users');
-  const user = users.find((u) => u.id === req.user.sub);
+router.get('/me', requireAuth, async (req, res) => {
+  let user = null;
+  if (req.user.sub) user = await getUserById(req.user.sub);
+  if (!user && req.user.email) user = await getUserByEmail(req.user.email);
   if (!user) return res.status(404).json({ error: 'User not found.' });
+  res.json({ user: formatUser(user) });
+});
+
+// ── OAuth Session Sync (Google / Apple via Supabase) ─────────────────
+router.post('/oauth-sync', async (req, res) => {
+  const { email, name, id: oauthId } = req.body || {};
+  if (!email || !String(email).trim()) {
+    return res.status(400).json({ error: 'Email is required for OAuth sync.' });
+  }
+
+  const cleanEmail = String(email).toLowerCase().trim();
+  const cleanName = String(name || cleanEmail.split('@')[0]).trim();
+
+  // upsertUser checks Supabase database for any existing role/is_admin
+  const user = await upsertUser({
+    id: oauthId || ('u_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6)),
+    name: cleanName,
+    email: cleanEmail,
+    role: 'customer', // default if brand new
+    isAdmin: false,
+  });
+
+  const token = signToken(user);
+  setAuthCookie(res, token);
   res.json({ user: formatUser(user) });
 });
 

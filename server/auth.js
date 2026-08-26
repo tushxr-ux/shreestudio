@@ -81,18 +81,15 @@ function requireAuth(req, res, next) {
 // Blocks the request with 403 if user is not an administrator.
 // Admin is determined by: explicit role/flag in DB, or matching ADMIN_EMAIL.
 // The old "isFirstUser" auto-admin logic has been removed for security.
-function requireAdmin(req, res, next) {
-  requireAuth(req, res, () => {
-    const { read } = require('./db');
-    const users = read('users');
-    const user = users.find((u) => u.id === req.user.sub);
-    const adminEmail = (process.env.ADMIN_EMAIL || '').toLowerCase();
+async function requireAdmin(req, res, next) {
+  requireAuth(req, res, async () => {
+    const { getUserById, getUserByEmail } = require('./supabaseDb');
+    let user = null;
+    if (req.user.sub) user = await getUserById(req.user.sub);
+    if (!user && req.user.email) user = await getUserByEmail(req.user.email);
 
     const isUserAdmin = Boolean(
-      user &&
-        (user.role === 'admin' ||
-          user.isAdmin ||
-          (adminEmail && user.email.toLowerCase() === adminEmail))
+      user && (user.role === 'admin' || user.isAdmin)
     );
 
     if (!isUserAdmin) {
