@@ -101,6 +101,10 @@ app.use((err, _req, res, _next) => {
   res.status(err.status || 500).json({ error: err.message || 'Something went wrong.' });
 });
 
-app.listen(PORT, () => {
-  console.log(`ShreeStudio server running at http://localhost:${PORT}`);
-});
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`ShreeStudio server running at http://localhost:${PORT}`);
+  });
+}
+
+module.exports = app;
