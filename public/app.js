@@ -981,13 +981,11 @@
     if (addBtn) addBtn.style.display = isAdmin ? 'inline-flex' : 'none';
     if (manageBtn) manageBtn.style.display = isAdmin ? 'inline-flex' : 'none';
     if (!state.user) {
-      if (mbAccountLabel) mbAccountLabel.textContent = 'Sign in';
-      area.innerHTML = `<button class="link-btn" id="signInBtn">Sign in</button>`;
+      area.innerHTML = `<button class="btn btn-primary sm" id="signInBtn" style="padding:7px 16px; font-size:13px; border-radius:999px;">Sign in</button>`;
       $('#signInBtn').addEventListener('click', () => openAuth('login'));
       return;
     }
     const firstName = (state.user.name || 'User').split(' ')[0];
-    if (mbAccountLabel) mbAccountLabel.textContent = firstName || 'Account';
 
     const initials = (state.user.name || 'User')
       .split(' ')
@@ -997,8 +995,11 @@
       .toUpperCase();
     area.innerHTML = `
       <div class="account-menu">
-        <button class="account-chip" id="accountChip">
-          <span class="av">${escapeHtml(initials)}</span>
+        <button class="account-chip" id="accountChip" title="Account Settings">
+          <span class="av">
+            <span class="online-dot"></span>
+            ${escapeHtml(initials)}
+          </span>
           <span>${escapeHtml(firstName)}</span>
         </button>
         <div class="account-dropdown" id="accountDropdown">
@@ -1495,26 +1496,10 @@
   // ================= Mobile Navigation Plumbing =================
   function initMobileNavigation() {
     const mbCart = $('#mbNavCart');
-    const mbAccount = $('#mbNavAccount');
     if (mbCart) {
       mbCart.addEventListener('click', () => {
         openLayer(cartDrawer);
         refreshCart();
-      });
-    }
-    if (mbAccount) {
-      mbAccount.addEventListener('click', (e) => {
-        e.stopPropagation();
-        if (!state.user) {
-          openAuth('login');
-        } else {
-          const dropdown = $('#accountDropdown');
-          if (dropdown) {
-            dropdown.classList.toggle('open');
-          } else {
-            showOrderHistory();
-          }
-        }
       });
     }
 
@@ -1539,8 +1524,6 @@
         }
       });
     }, { passive: true });
-  }
-
   // ================= boot =================
   (async function init() {
     initTubesBackground();
