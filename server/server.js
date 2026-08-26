@@ -36,15 +36,15 @@ app.use(
 // --- rate limiters ---
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10,                   // 10 attempts per window
+  max: 60,                   // 60 attempts per 15 minutes
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: 'Too many login attempts. Please try again in 15 minutes.' },
+  message: { error: 'Too many login attempts. Please try again in a few minutes.' },
 });
 
 const apiLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
-  max: 100,            // 100 requests per minute per IP
+  max: 600,            // 600 requests per minute per IP (generous for seamless browsing)
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests. Please slow down.' },
@@ -72,7 +72,7 @@ app.get('/api/config', (_req, res) => {
 
 // --- API routes ---
 app.use('/api/products', require('./routes/products'));
-app.use('/api/auth', authLimiter, require('./routes/auth'));
+app.use('/api/auth', require('./routes/auth'));
 app.use('/api/cart', require('./routes/cart'));
 app.use('/api/orders', require('./routes/orders'));
 app.use('/api/razorpay', require('./routes/razorpay'));
