@@ -10,33 +10,46 @@ const {
 
 const router = express.Router();
 
+// ── Validation helpers ──────────────────────────────────────────────
 function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
+function isStrongPassword(password) {
+  // At least 8 chars, 1 uppercase, 1 lowercase, 1 digit
+  return (
+    typeof password === 'string' &&
+    password.length >= 8 &&
+    /[A-Z]/.test(password) &&
+    /[a-z]/.test(password) &&
+    /[0-9]/.test(password)
+  );
+}
+
 function formatUser(user) {
-  const adminEmail = (process.env.ADMIN_EMAIL || 'admin@shreestudio.com').toLowerCase();
-  const users = read('users');
-  const isFirstUser = users.length > 0 && users[0].id === user.id;
+  const adminEmail = (process.env.ADMIN_EMAIL || '').toLowerCase();
   const isAdmin = Boolean(
     user.role === 'admin' ||
     user.isAdmin ||
-    isFirstUser ||
     (adminEmail && user.email.toLowerCase() === adminEmail)
   );
   return { id: user.id, name: user.name, email: user.email, isAdmin };
 }
 
+// ── Signup ───────────────────────────────────────────────────────────
 router.post('/signup', async (req, res) => {
   const { name, email, password } = req.body || {};
-  if (!name || !email || !password) {
-    return res.status(400).json({ error: 'Name, email, and password are all required.' });
+
+  if (!name || !String(name).trim()) {
+    return res.status(400).json({ error: 'Name is required.' });
   }
-  if (!isValidEmail(email)) {
+  if (!email || !isValidEmail(email)) {
     return res.status(400).json({ error: 'Enter a valid email address.' });
   }
-  if (String(password).length < 8) {
-    return res.status(400).json({ error: 'Password must be at least 8 characters.' });
+  if (!isStrongPassword(password)) {
+    return res.status(400).json({
+      error: 'Password must be at least 8 characters and contain 1 uppercase letter, 1 lowercase letter, and 1 digit.',
+    });
   }
 
   const users = read('users');
@@ -44,11 +57,11 @@ router.post('/signup', async (req, res) => {
     return res.status(409).json({ error: 'An account with that email already exists.' });
   }
 
-  const adminEmail = (process.env.ADMIN_EMAIL || 'admin@shreestudio.com').toLowerCase();
-  const isFirstUser = users.length === 0;
-  const isAdmin = isFirstUser || (email.toLowerCase() === adminEmail);
+  // Admin determined solely by ADMIN_EMAIL env var — no auto-admin for first user
+  const adminEmail = (process.env.ADMIN_EMAIL || '').toLowerCase();
+  const isAdmin = Boolean(adminEmail && email.toLowerCase().trim() === adminEmail);
 
-  const passwordHash = await bcrypt.hash(password, 10);
+  const passwordHash = await bcrypt.hash(password, 12); // bcrypt cost 12 (was 10)
   const user = {
     id: 'u_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
     name: String(name).trim(),
@@ -63,9 +76,11 @@ router.post('/signup', async (req, res) => {
 
   const token = signToken(user);
   setAuthCookie(res, token);
-  res.status(201).json({ user: formatUser(user), token });
+  // Token is in the httpOnly cookie — don't also return it in the body
+  res.status(201).json({ user: formatUser(user) });
 });
 
+// ── Login ────────────────────────────────────────────────────────────
 router.post('/login', async (req, res) => {
   const { email, password } = req.body || {};
   if (!email || !password) {
@@ -80,14 +95,17 @@ router.post('/login', async (req, res) => {
 
   const token = signToken(user);
   setAuthCookie(res, token);
-  res.json({ user: formatUser(user), token });
+  // Token is in the httpOnly cookie — don't also return it in the body
+  res.json({ user: formatUser(user) });
 });
 
+// ── Logout ───────────────────────────────────────────────────────────
 router.post('/logout', (_req, res) => {
   clearAuthCookie(res);
   res.json({ ok: true });
 });
 
+// ── Current user ─────────────────────────────────────────────────────
 router.get('/me', requireAuth, (req, res) => {
   const users = read('users');
   const user = users.find((u) => u.id === req.user.sub);

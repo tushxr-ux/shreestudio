@@ -7,6 +7,7 @@ const { sendOrderConfirmationEmail } = require('../emailService');
 
 const router = express.Router();
 const CART_COOKIE = 'shreestudio_cart_id';
+const IS_PROD = process.env.NODE_ENV === 'production';
 
 function getRazorpayInstance() {
   const keyId = process.env.RAZORPAY_KEY_ID || '';
@@ -58,7 +59,6 @@ router.post('/create-order', requireAuth, async (req, res) => {
     const razorpay = getRazorpayInstance();
 
     let razorpayOrderId = '';
-    const keyId = process.env.RAZORPAY_KEY_ID || 'rzp_test_shree_studio';
 
     if (razorpay) {
       const rzpOrder = await razorpay.orders.create({
@@ -68,16 +68,18 @@ router.post('/create-order', requireAuth, async (req, res) => {
         notes: { userId: req.user.sub },
       });
       razorpayOrderId = rzpOrder.id;
-    } else {
-      // Dev / Test fallback order ID
+    } else if (!IS_PROD) {
+      // Dev / Test fallback order ID — only allowed in non-production
       razorpayOrderId = 'order_rzp_mock_' + Date.now().toString(36);
+    } else {
+      return res.status(503).json({ error: 'Payment gateway is not configured.' });
     }
 
+    // Don't expose keyId here — frontend fetches it from /api/config
     res.json({
       orderId: razorpayOrderId,
       amount: amountInPaise,
       currency,
-      keyId,
       subtotal,
       items,
     });
@@ -96,19 +98,34 @@ router.post('/verify-payment', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'Missing payment details.' });
     }
 
-    const keySecret = process.env.RAZORPAY_KEY_SECRET || 'rzp_test_secret_shree_studio';
     let isValid = false;
 
     if (razorpay_order_id.startsWith('order_rzp_mock_')) {
-      // Mock order auto-verify in test mode
+      // Mock orders only allowed in non-production
+      if (IS_PROD) {
+        return res.status(400).json({ error: 'Mock payments are not allowed in production.' });
+      }
       isValid = true;
     } else {
+      // Real Razorpay signature verification
+      const keySecret = process.env.RAZORPAY_KEY_SECRET || '';
+      if (!keySecret) {
+        return res.status(503).json({ error: 'Payment gateway is not configured.' });
+      }
       const generatedSignature = crypto
         .createHmac('sha256', keySecret)
         .update(`${razorpay_order_id}|${razorpay_payment_id}`)
         .digest('hex');
 
-      isValid = (generatedSignature === razorpay_signature);
+      // Use timing-safe comparison to prevent timing attacks
+      try {
+        isValid = crypto.timingSafeEqual(
+          Buffer.from(generatedSignature, 'hex'),
+          Buffer.from(razorpay_signature || '', 'hex')
+        );
+      } catch (_e) {
+        isValid = false;
+      }
     }
 
     if (!isValid) {

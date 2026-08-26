@@ -4,32 +4,75 @@ const express = require('express');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const morgan = require('morgan');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 
 const { read } = require('./db');
 require('./supabaseClient');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
+const IS_PROD = process.env.NODE_ENV === 'production';
 
-// --- middleware ---
+// --- security middleware ---
+app.disable('x-powered-by');
+app.use(helmet({
+  contentSecurityPolicy: false, // CSP can break inline scripts; enable when ready
+  crossOriginEmbedderPolicy: false,
+}));
 app.use(morgan('dev'));
-app.use(express.json());
+app.use(express.json({ limit: '1mb' }));
 app.use(cookieParser());
+
+// --- CORS ---
+const allowedOrigin = process.env.CLIENT_ORIGIN || (IS_PROD ? false : true);
 app.use(
   cors({
-    origin: process.env.CLIENT_ORIGIN || true, // reflect request origin in dev
+    origin: allowedOrigin,
     credentials: true,
   })
 );
+
+// --- rate limiters ---
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10,                   // 10 attempts per window
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many login attempts. Please try again in 15 minutes.' },
+});
+
+const apiLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 100,            // 100 requests per minute per IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests. Please slow down.' },
+});
+
+app.use('/api/', apiLimiter);
 
 // --- seed products on first boot if the store is empty ---
 if (read('products').length === 0) {
   require('./data/seed.js');
 }
 
+// --- public config endpoint (no secrets!) ---
+app.get('/api/config', (_req, res) => {
+  const razorpayKeyId = process.env.RAZORPAY_KEY_ID || '';
+  const supabaseUrl = process.env.SUPABASE_URL || '';
+  const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || '';
+
+  res.json({
+    razorpayKeyId: razorpayKeyId.includes('placeholder') ? '' : razorpayKeyId,
+    supabaseUrl: supabaseUrl.includes('your-supabase') ? '' : supabaseUrl,
+    supabaseAnonKey: supabaseAnonKey.includes('your-supabase') ? '' : supabaseAnonKey,
+  });
+});
+
 // --- API routes ---
 app.use('/api/products', require('./routes/products'));
-app.use('/api/auth', require('./routes/auth'));
+app.use('/api/auth', authLimiter, require('./routes/auth'));
 app.use('/api/cart', require('./routes/cart'));
 app.use('/api/orders', require('./routes/orders'));
 app.use('/api/razorpay', require('./routes/razorpay'));

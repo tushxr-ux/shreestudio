@@ -20,10 +20,14 @@
     String(str).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
   async function api(path, options = {}) {
+    const { headers: extraHeaders, ...rest } = options;
+    const isForm = typeof FormData !== 'undefined' && rest.body instanceof FormData;
+    const headers = { ...(extraHeaders || {}) };
+    if (!isForm) headers['Content-Type'] = headers['Content-Type'] || 'application/json';
     const res = await fetch(API + path, {
       credentials: 'include',
-      headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
-      ...options,
+      headers,
+      ...rest,
     });
     let data = null;
     try { data = await res.json(); } catch (_e) { /* no body */ }
@@ -36,6 +40,7 @@
 
   function toast(message, type = 'info') {
     const stack = $('#toastStack');
+    if (!stack) return;
     const el = document.createElement('div');
     el.className = `toast ${type}`;
     el.innerHTML = `<span class="dot"></span><span>${escapeHtml(message)}</span>`;
@@ -57,6 +62,7 @@
     openLayers.add(el);
   }
   function closeLayer(el) {
+    $$('video', el).forEach((v) => v.pause());
     el.classList.remove('open');
     openLayers.delete(el);
     if (openLayers.size === 0) overlay.classList.remove('open');
@@ -164,10 +170,36 @@
     return '★'.repeat(full) + '☆'.repeat(5 - full);
   }
 
+  function previewClipHtml(p, className) {
+    if (!p.previewVideo) return '';
+    return `<video class="${className}" muted loop playsinline preload="metadata" src="${escapeHtml(p.previewVideo)}"></video>
+        <button type="button" class="preview-play" data-play-preview="${p.id}" aria-label="Play preview">▶ Preview</button>`;
+  }
+
+  function bindPreviewHovers(root) {
+    $$('.prod-card', root).forEach((card) => {
+      const video = card.querySelector('video.preview-video');
+      if (!video) return;
+      card.addEventListener('mouseenter', () => { video.play().catch(() => {}); });
+      card.addEventListener('mouseleave', () => { video.pause(); video.currentTime = 0; });
+    });
+    $$('[data-play-preview]', root).forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const card = btn.closest('.prod-card');
+        const video = card && card.querySelector('video.preview-video');
+        if (!video) return;
+        if (video.paused) video.play().catch(() => {});
+        else video.pause();
+      });
+    });
+  }
+
   function productCardHtml(p) {
     return `
       <div class="prod-card" data-id="${p.id}">
         <div class="prod-media" style="background:${p.gradient}" data-quickview="${p.id}">
+          ${previewClipHtml(p, 'preview-video')}
           <span class="badge">${escapeHtml(p.tagline)}</span>
           ${p.bestseller ? '<span class="badge best">Bestseller</span>' : ''}
         </div>
@@ -202,6 +234,7 @@
         return;
       }
       grid.innerHTML = data.products.map(productCardHtml).join('');
+      bindPreviewHovers(grid);
 
       $$('[data-add]', grid).forEach((btn) => {
         btn.addEventListener('click', (e) => {
@@ -264,9 +297,13 @@
           .join('')
       : '<p style="color:var(--text-faint); font-size:13px;">No reviews yet — be the first to leave one.</p>';
 
+    const qvMedia = p.previewVideo
+      ? `<video class="qv-video" controls playsinline preload="metadata" src="${escapeHtml(p.previewVideo)}"></video>`
+      : '';
+
     $('#quickviewBody').innerHTML = `
       <div class="quickview">
-        <div class="qv-media" style="background:${p.gradient}"></div>
+        <div class="qv-media" style="background:${p.gradient}">${qvMedia}</div>
         <div class="qv-info">
           <span class="qv-cat">${escapeHtml(p.categoryLabel)}</span>
           <h3>${escapeHtml(p.name)}</h3>
@@ -332,7 +369,10 @@
     });
   }
 
-  $('#closeQuickview').addEventListener('click', () => closeLayer(quickviewModal));
+  $('#closeQuickview').addEventListener('click', () => {
+    $$('video', quickviewModal).forEach((v) => v.pause());
+    closeLayer(quickviewModal);
+  });
 
   // ================= CART =================
   const cartDrawer = $('#cartDrawer');
@@ -370,6 +410,7 @@
         <div class="cart-item-info">
           <span class="cat">${escapeHtml(item.categoryLabel)}</span>
           <h5>${escapeHtml(item.name)}</h5>
+          ${item.previewVideo ? `<button type="button" class="preview-link" data-cart-preview="${item.productId}">Watch preview</button>` : ''}
           <div class="qty-row">
             <button class="qty-btn" data-qty-minus="${item.productId}">−</button>
             <span class="qty-val">${item.quantity}</span>
@@ -395,6 +436,12 @@
     );
     $$('[data-remove]', body).forEach((btn) =>
       btn.addEventListener('click', () => removeFromCart(btn.dataset.remove))
+    );
+    $$('[data-cart-preview]', body).forEach((btn) =>
+      btn.addEventListener('click', () => {
+        closeLayer(cartDrawer);
+        openQuickview(btn.dataset.cartPreview);
+      })
     );
     $('#checkoutBtn').addEventListener('click', checkout);
   }
@@ -454,11 +501,14 @@
     const btn = $('#checkoutBtn');
     if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Preparing Razorpay…'; }
     try {
-      const orderData = await api('/razorpay/create-order', { method: 'POST' });
+      const [orderData, configData] = await Promise.all([
+        api('/razorpay/create-order', { method: 'POST' }),
+        api('/config'),
+      ]);
       
       if (window.Razorpay) {
         const options = {
-          key: orderData.keyId,
+          key: configData.razorpayKeyId,
           amount: orderData.amount,
           currency: orderData.currency,
           name: 'ShreeStudio',
@@ -649,11 +699,13 @@
       if (window.supabase && typeof window.supabase.createClient === 'function') {
         toast('Redirecting to Google OAuth via Supabase…', 'info');
         try {
-          const supabase = window.supabase.createClient(
-            'https://osrafnvccspnhwcuhkxn.supabase.co',
-            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9zcmFmbnZjY3Nwbmh3Y3Voa3huIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY2ODA0OTAsImV4cCI6MjEwMjI1NjQ5MH0.rKZchKwD7W-DhbVbHQUiGpARRU2hPMLZQZOddEjpkQc'
-          );
-          await supabase.auth.signInWithOAuth({ provider: 'google' });
+          const cfg = await api('/config');
+          if (!cfg.supabaseUrl || !cfg.supabaseAnonKey) {
+            toast('Supabase not configured. Add keys in server/.env', 'info');
+            return;
+          }
+          const sb = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
+          await sb.auth.signInWithOAuth({ provider: 'google' });
         } catch (_e) {
           toast('Supabase Google OAuth setup ready. Add keys in server/.env', 'info');
         }
@@ -668,11 +720,13 @@
       if (window.supabase && typeof window.supabase.createClient === 'function') {
         toast('Redirecting to Apple (iOS) OAuth via Supabase…', 'info');
         try {
-          const supabase = window.supabase.createClient(
-            'https://osrafnvccspnhwcuhkxn.supabase.co',
-            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9zcmFmbnZjY3Nwbmh3Y3Voa3huIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY2ODA0OTAsImV4cCI6MjEwMjI1NjQ5MH0.rKZchKwD7W-DhbVbHQUiGpARRU2hPMLZQZOddEjpkQc'
-          );
-          await supabase.auth.signInWithOAuth({ provider: 'apple' });
+          const cfg = await api('/config');
+          if (!cfg.supabaseUrl || !cfg.supabaseAnonKey) {
+            toast('Supabase not configured. Add keys in server/.env', 'info');
+            return;
+          }
+          const sb = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
+          await sb.auth.signInWithOAuth({ provider: 'apple' });
         } catch (_e) {
           toast('Supabase Apple OAuth setup ready. Add keys in server/.env', 'info');
         }
@@ -685,9 +739,10 @@
   function renderAuthArea() {
     const area = $('#authArea');
     const addBtn = $('#openAddProjectBtn');
-    if (addBtn) {
-      addBtn.style.display = (state.user && state.user.isAdmin) ? 'inline-flex' : 'none';
-    }
+    const manageBtn = $('#openManagePreviewsBtn');
+    const isAdmin = Boolean(state.user && state.user.isAdmin);
+    if (addBtn) addBtn.style.display = isAdmin ? 'inline-flex' : 'none';
+    if (manageBtn) manageBtn.style.display = isAdmin ? 'inline-flex' : 'none';
     if (!state.user) {
       area.innerHTML = `<button class="link-btn" id="signInBtn">Sign in</button>`;
       $('#signInBtn').addEventListener('click', () => openAuth('login'));
@@ -789,30 +844,113 @@
     closeAddProjectBtn.addEventListener('click', () => closeLayer(addProjectModal));
   }
 
+  const managePreviewsModal = $('#managePreviewsModal');
+  const openManagePreviewsBtn = $('#openManagePreviewsBtn');
+  const closeManagePreviewsBtn = $('#closeManagePreviews');
+
+  function renderManagePreviews(products) {
+    const body = $('#managePreviewsBody');
+    if (!products.length) {
+      body.innerHTML = '<p class="form-note" style="text-align:left;">No packs yet. Add a pack first, then upload a preview.</p>';
+      return;
+    }
+    body.innerHTML = products
+      .map(
+        (p) => `
+      <div class="preview-admin-row" data-id="${p.id}">
+        <div class="preview-admin-thumb" style="background:${p.gradient}">
+          ${p.previewVideo ? `<video muted playsinline src="${escapeHtml(p.previewVideo)}"></video>` : ''}
+        </div>
+        <div class="preview-admin-meta">
+          <b>${escapeHtml(p.name)}</b>
+          <span>${escapeHtml(p.categoryLabel)} · ${p.previewVideo ? 'Preview uploaded' : 'No preview yet'}</span>
+          <div class="preview-admin-actions">
+            <label class="btn btn-ghost sm" style="font-size:12px; padding:6px 12px; border-radius:8px; cursor:pointer;">
+              ${p.previewVideo ? 'Replace video' : 'Upload video'}
+              <input type="file" accept="video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov" data-preview-upload="${p.id}" hidden>
+            </label>
+            ${p.previewVideo ? `<button type="button" class="btn btn-ghost sm" style="font-size:12px; padding:6px 12px; border-radius:8px;" data-preview-remove="${p.id}">Remove</button>` : ''}
+          </div>
+        </div>
+      </div>`
+      )
+      .join('');
+
+    $$('[data-preview-upload]', body).forEach((input) => {
+      input.addEventListener('change', async () => {
+        const file = input.files && input.files[0];
+        if (!file) return;
+        const formData = new FormData();
+        formData.append('previewVideo', file);
+        try {
+          await api(`/products/${input.dataset.previewUpload}/preview`, { method: 'POST', body: formData });
+          toast('Preview video saved.', 'success');
+          await loadProducts();
+          openManagePreviews();
+        } catch (err) {
+          toast(err.message, 'error');
+        }
+      });
+    });
+    $$('[data-preview-remove]', body).forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        try {
+          await api(`/products/${btn.dataset.previewRemove}/preview`, { method: 'DELETE' });
+          toast('Preview removed.', 'info');
+          await loadProducts();
+          openManagePreviews();
+        } catch (err) {
+          toast(err.message, 'error');
+        }
+      });
+    });
+  }
+
+  async function openManagePreviews() {
+    if (!managePreviewsModal) return;
+    $('#managePreviewsBody').innerHTML = '<p class="form-note" style="text-align:left;">Loading packs…</p>';
+    openLayer(managePreviewsModal);
+    try {
+      const data = await api('/products');
+      renderManagePreviews(data.products);
+    } catch (err) {
+      $('#managePreviewsBody').innerHTML = `<p class="form-error show">${escapeHtml(err.message)}</p>`;
+    }
+  }
+
+  if (openManagePreviewsBtn) {
+    openManagePreviewsBtn.addEventListener('click', () => {
+      if (!state.user) {
+        openAuth('login');
+        toast('Sign in as admin to manage preview videos.', 'info');
+        return;
+      }
+      openManagePreviews();
+    });
+  }
+  if (closeManagePreviewsBtn) {
+    closeManagePreviewsBtn.addEventListener('click', () => closeLayer(managePreviewsModal));
+  }
+
   const addProjectForm = $('#addProjectForm');
   if (addProjectForm) {
     addProjectForm.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const name = $('#projName').value.trim();
-      const category = $('#projCategory').value;
-      const price = $('#projPrice').value;
-      const compareAtPrice = $('#projComparePrice').value;
-      const tagline = $('#projTagline').value.trim();
-      const itemCount = $('#projItemCount').value;
-      const description = $('#projDescription').value.trim();
+      const formData = new FormData();
+      formData.append('name', $('#projName').value.trim());
+      formData.append('category', $('#projCategory').value);
+      formData.append('price', $('#projPrice').value);
+      formData.append('compareAtPrice', $('#projComparePrice').value);
+      formData.append('tagline', $('#projTagline').value.trim());
+      formData.append('itemCount', $('#projItemCount').value);
+      formData.append('description', $('#projDescription').value.trim());
+      const previewFile = $('#projPreviewVideo') && $('#projPreviewVideo').files[0];
+      if (previewFile) formData.append('previewVideo', previewFile);
 
       try {
         const data = await api('/products', {
           method: 'POST',
-          body: JSON.stringify({
-            name,
-            category,
-            price,
-            compareAtPrice,
-            tagline,
-            itemCount,
-            description,
-          }),
+          body: formData,
         });
         toast(`Published "${data.product.name}" to storefront!`, 'success');
         closeLayer(addProjectModal);

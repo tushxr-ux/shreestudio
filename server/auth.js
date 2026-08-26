@@ -1,28 +1,49 @@
+const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 
-// In production, set JWT_SECRET as a real environment variable/secret.
-// A dev fallback is provided so the app runs out of the box.
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-only-insecure-secret-change-me';
-const COOKIE_NAME = 'shreestudio_token';
+// ── JWT secret ──────────────────────────────────────────────────────
+// In production, ALWAYS set a strong JWT_SECRET env var (64+ random chars).
+// The fallback generates a random secret per process so tokens don't
+// survive restarts — this is intentional for dev safety.
+const JWT_SECRET = process.env.JWT_SECRET && process.env.JWT_SECRET !== 'CHANGE_ME_use_a_64char_random_string'
+  ? process.env.JWT_SECRET
+  : (() => {
+      const fallback = crypto.randomBytes(48).toString('hex');
+      console.warn(
+        '⚠️  JWT_SECRET is not set — using a random per-process secret.\n' +
+        '   Tokens will NOT survive server restarts.\n' +
+        '   Set JWT_SECRET in server/.env for production.'
+      );
+      return fallback;
+    })();
 
+const COOKIE_NAME = 'shreestudio_token';
+const IS_PROD = process.env.NODE_ENV === 'production';
+
+// ── Token helpers ───────────────────────────────────────────────────
 function signToken(user) {
   return jwt.sign(
     { sub: user.id, email: user.email, name: user.name },
     JWT_SECRET,
-    { expiresIn: '30d' }
+    { expiresIn: '7d' } // 7 days (was 30d — reduced attack window)
   );
 }
 
 function setAuthCookie(res, token) {
   res.cookie(COOKIE_NAME, token, {
     httpOnly: true,
-    sameSite: 'lax',
-    maxAge: 30 * 24 * 60 * 60 * 1000,
+    secure: IS_PROD,            // HTTPS-only in production
+    sameSite: IS_PROD ? 'strict' : 'lax',
+    maxAge: 7 * 24 * 60 * 60 * 1000, // match JWT expiry
   });
 }
 
 function clearAuthCookie(res) {
-  res.clearCookie(COOKIE_NAME);
+  res.clearCookie(COOKIE_NAME, {
+    httpOnly: true,
+    secure: IS_PROD,
+    sameSite: IS_PROD ? 'strict' : 'lax',
+  });
 }
 
 function getToken(req) {
@@ -58,17 +79,27 @@ function requireAuth(req, res, next) {
 }
 
 // Blocks the request with 403 if user is not an administrator.
+// Admin is determined by: explicit role/flag in DB, or matching ADMIN_EMAIL.
+// The old "isFirstUser" auto-admin logic has been removed for security.
 function requireAdmin(req, res, next) {
   requireAuth(req, res, () => {
+    const { read } = require('./db');
+    const users = read('users');
+    const user = users.find((u) => u.id === req.user.sub);
     const adminEmail = (process.env.ADMIN_EMAIL || '').toLowerCase();
-    const isUserAdmin = req.user.email && (
-      (adminEmail && req.user.email.toLowerCase() === adminEmail) ||
-      req.user.role === 'admin' ||
-      req.user.isAdmin === true
+
+    const isUserAdmin = Boolean(
+      user &&
+        (user.role === 'admin' ||
+          user.isAdmin ||
+          (adminEmail && user.email.toLowerCase() === adminEmail))
     );
+
     if (!isUserAdmin) {
       return res.status(403).json({ error: 'Access denied: Only store administrators can perform this action.' });
     }
+    req.user.role = 'admin';
+    req.user.isAdmin = true;
     next();
   });
 }

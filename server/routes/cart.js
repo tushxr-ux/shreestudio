@@ -28,6 +28,7 @@ function hydrate(cart) {
         name: product.name,
         price: product.price,
         gradient: product.gradient,
+        previewVideo: product.previewVideo || null,
         categoryLabel: product.categoryLabel,
         quantity: item.quantity,
         lineTotal: Math.round(product.price * item.quantity * 100) / 100,
