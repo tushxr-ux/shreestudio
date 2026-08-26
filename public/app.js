@@ -1524,6 +1524,8 @@
         }
       });
     }, { passive: true });
+  }
+
   // ================= boot =================
   (async function init() {
     initTubesBackground();

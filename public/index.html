@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/styles.css?v=3.1">
+<link rel="stylesheet" href="/styles.css?v=3.3">
 <!-- Supabase SDK & Razorpay Payment SDK -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
@@ -367,8 +367,10 @@
 
 <div class="toast-stack" id="toastStack"></div>
 
+  </div><!-- /.site-wrap -->
+
   <!-- ===== Mobile Floating / Sticky Bottom Navigation (Home, Presets, Shop, Cart) ===== -->
-  <nav class="mobile-bottom-nav" id="mobileBottomNav" aria-label="Mobile Navigation">
+  <div class="mobile-bottom-nav" id="mobileBottomNav" role="navigation" aria-label="Mobile Navigation">
     <button class="mb-nav-item active" data-scroll="top" id="mbNavHome" aria-label="Home">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
       <span>Home</span>
@@ -388,12 +390,10 @@
       </div>
       <span>Cart</span>
     </button>
-  </nav>
-
-  </div><!-- /.site-wrap -->
+  </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
-  <script src="/app.js?v=3.1"></script>
+  <script src="/app.js?v=3.3"></script>
 </body>
 </html>
