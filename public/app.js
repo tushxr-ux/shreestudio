@@ -562,11 +562,19 @@
 
   function renderCartCount() {
     const badge = $('#cartCount');
+    const mbBadge = $('#mbCartBadge');
     if (state.cart.count > 0) {
-      badge.style.display = 'flex';
-      badge.textContent = state.cart.count;
+      if (badge) {
+        badge.style.display = 'flex';
+        badge.textContent = state.cart.count;
+      }
+      if (mbBadge) {
+        mbBadge.style.display = 'flex';
+        mbBadge.textContent = state.cart.count;
+      }
     } else {
-      badge.style.display = 'none';
+      if (badge) badge.style.display = 'none';
+      if (mbBadge) mbBadge.style.display = 'none';
     }
   }
 
@@ -968,14 +976,19 @@
     const area = $('#authArea');
     const addBtn = $('#openAddProjectBtn');
     const manageBtn = $('#openManagePreviewsBtn');
+    const mbAccountLabel = $('#mbAccountLabel');
     const isAdmin = Boolean(state.user && state.user.isAdmin);
     if (addBtn) addBtn.style.display = isAdmin ? 'inline-flex' : 'none';
     if (manageBtn) manageBtn.style.display = isAdmin ? 'inline-flex' : 'none';
     if (!state.user) {
+      if (mbAccountLabel) mbAccountLabel.textContent = 'Sign in';
       area.innerHTML = `<button class="link-btn" id="signInBtn">Sign in</button>`;
       $('#signInBtn').addEventListener('click', () => openAuth('login'));
       return;
     }
+    const firstName = (state.user.name || 'User').split(' ')[0];
+    if (mbAccountLabel) mbAccountLabel.textContent = firstName || 'Account';
+
     const initials = (state.user.name || 'User')
       .split(' ')
       .map((s) => s[0])
@@ -986,10 +999,18 @@
       <div class="account-menu">
         <button class="account-chip" id="accountChip">
           <span class="av">${escapeHtml(initials)}</span>
-          <span>${escapeHtml((state.user.name || 'User').split(' ')[0])}</span>
+          <span>${escapeHtml(firstName)}</span>
         </button>
         <div class="account-dropdown" id="accountDropdown">
           <div class="who"><b>${escapeHtml(state.user.name || 'User')}</b><span>${escapeHtml(state.user.email || '')}</span></div>
+          ${isAdmin ? `
+          <button id="mbAddPackBtn" style="color:var(--cyan); font-weight:600;">
+            <span class="label-wrap">➕ Add New Pack</span>
+          </button>
+          <button id="mbManagePreviewsBtn" style="color:var(--violet); font-weight:600;">
+            <span class="label-wrap">🎬 Manage Previews</span>
+          </button>
+          ` : ''}
           <button id="viewCartMenuBtn">
             <span class="label-wrap">🛒 My Cart</span>
             <span style="font-family:var(--ff-mono); font-size:11.5px; background:var(--surface-2); border:1px solid var(--line); padding:2px 8px; border-radius:999px;">${state.cart.count || 0}</span>
@@ -1008,16 +1029,37 @@
       e.stopPropagation();
       dropdown.classList.toggle('open');
     });
-    document.addEventListener('click', () => dropdown.classList.remove('open'), { once: true });
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.account-menu') && !e.target.closest('#mbNavAccount')) {
+        dropdown.classList.remove('open');
+      }
+    });
+
+    if (isAdmin) {
+      const mbAdd = $('#mbAddPackBtn');
+      if (mbAdd) mbAdd.addEventListener('click', () => {
+        dropdown.classList.remove('open');
+        openLayer($('#addProjectModal'));
+      });
+      const mbPrev = $('#mbManagePreviewsBtn');
+      if (mbPrev) mbPrev.addEventListener('click', () => {
+        dropdown.classList.remove('open');
+        openManagePreviews();
+      });
+    }
     
     const cartMenuBtn = $('#viewCartMenuBtn');
     if (cartMenuBtn) {
       cartMenuBtn.addEventListener('click', () => {
+        dropdown.classList.remove('open');
         openLayer(cartDrawer);
         refreshCart();
       });
     }
-    $('#viewOrdersBtn').addEventListener('click', showOrderHistory);
+    $('#viewOrdersBtn').addEventListener('click', () => {
+      dropdown.classList.remove('open');
+      showOrderHistory();
+    });
     $('#signOutBtn').addEventListener('click', signOut);
   }
 
@@ -1312,7 +1354,8 @@
   // ================= 3D Interactive Neon Tubes Cursor Background =================
   async function initTubesBackground() {
     const canvas = document.getElementById('tubesCanvas');
-    if (!canvas || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    // On mobile or reduced-motion, skip tubes canvas
+    if (!canvas || window.innerWidth < 768 || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
     try {
       const module = await import('https://cdn.jsdelivr.net/npm/threejs-components@0.0.19/build/cursors/tubes1.min.js');
@@ -1342,15 +1385,6 @@
           }
         }
       });
-
-      // Forward cursor movements from window to canvas element
-      const forwardPointer = (e) => {
-        canvas.dispatchEvent(new PointerEvent('pointerenter', { clientX: e.clientX, clientY: e.clientY, bubbles: true }));
-        canvas.dispatchEvent(new PointerEvent('pointerover', { clientX: e.clientX, clientY: e.clientY, bubbles: true }));
-        canvas.dispatchEvent(new PointerEvent('pointermove', { clientX: e.clientX, clientY: e.clientY, bubbles: true }));
-      };
-      window.addEventListener('pointermove', forwardPointer);
-      window.addEventListener('mousemove', forwardPointer);
 
       document.body.addEventListener('click', (e) => {
         if (e.target.closest('button, a, input, select, textarea, .modal, .drawer, .pcard, .cat-card')) return;
@@ -1421,31 +1455,97 @@
       entries.forEach(entry => {
         if (!entry.isIntersecting) return;
         const el = entry.target;
-        const raw = el.textContent.trim();         // e.g. "1,200+" or "40K+"
-        const suffix = raw.replace(/[0-9,]/g, ''); // "+", "K+", "/5"
-        const num = parseFloat(raw.replace(/[^0-9.]/g, ''));
-        if (isNaN(num)) return;
-        let start = null;
-        const duration = 1400;
-        const step = (ts) => {
-          if (!start) start = ts;
-          const progress = Math.min((ts - start) / duration, 1);
-          const eased = 1 - Math.pow(1 - progress, 3);
-          const current = Math.round(eased * num);
-          el.textContent = current.toLocaleString() + suffix;
-          if (progress < 1) requestAnimationFrame(step);
-        };
-        requestAnimationFrame(step);
+        const raw = el.textContent.trim(); // e.g. "1,200+", "40K+", "4.9/5"
+
+        if (raw.includes('/5')) {
+          const ratingNum = parseFloat(raw.replace('/5', '')) || 4.9;
+          let start = null;
+          const duration = 1200;
+          const step = (ts) => {
+            if (!start) start = ts;
+            const progress = Math.min((ts - start) / duration, 1);
+            const eased = 1 - Math.pow(1 - progress, 3);
+            const current = (eased * ratingNum).toFixed(1);
+            el.textContent = `${current}/5`;
+            if (progress < 1) requestAnimationFrame(step);
+          };
+          requestAnimationFrame(step);
+        } else {
+          const suffix = raw.replace(/[0-9,.]/g, ''); // "+", "K+"
+          const num = parseFloat(raw.replace(/[^0-9.]/g, ''));
+          if (isNaN(num)) return;
+          let start = null;
+          const duration = 1400;
+          const step = (ts) => {
+            if (!start) start = ts;
+            const progress = Math.min((ts - start) / duration, 1);
+            const eased = 1 - Math.pow(1 - progress, 3);
+            const current = Math.round(eased * num);
+            el.textContent = current.toLocaleString() + suffix;
+            if (progress < 1) requestAnimationFrame(step);
+          };
+          requestAnimationFrame(step);
+        }
         observer.unobserve(el);
       });
     }, { threshold: 0.5 });
     stats.forEach(el => observer.observe(el));
   }
 
+  // ================= Mobile Navigation Plumbing =================
+  function initMobileNavigation() {
+    const mbCart = $('#mbNavCart');
+    const mbAccount = $('#mbNavAccount');
+    if (mbCart) {
+      mbCart.addEventListener('click', () => {
+        openLayer(cartDrawer);
+        refreshCart();
+      });
+    }
+    if (mbAccount) {
+      mbAccount.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (!state.user) {
+          openAuth('login');
+        } else {
+          const dropdown = $('#accountDropdown');
+          if (dropdown) {
+            dropdown.classList.toggle('open');
+          } else {
+            showOrderHistory();
+          }
+        }
+      });
+    }
+
+    // Active bottom navigation item tracking on scroll
+    window.addEventListener('scroll', () => {
+      const scrollPos = window.scrollY + 200;
+      const categoriesEl = document.getElementById('categories');
+      const productsEl = document.getElementById('products');
+      
+      let activeTarget = 'top';
+      if (productsEl && scrollPos >= productsEl.offsetTop) {
+        activeTarget = 'products';
+      } else if (categoriesEl && scrollPos >= categoriesEl.offsetTop) {
+        activeTarget = 'categories';
+      }
+
+      $$('.mb-nav-item').forEach((item) => {
+        if (item.dataset.scroll === activeTarget) {
+          item.classList.add('active');
+        } else if (item.dataset.scroll) {
+          item.classList.remove('active');
+        }
+      });
+    }, { passive: true });
+  }
+
   // ================= boot =================
   (async function init() {
     initTubesBackground();
     initStatCounters();
+    initMobileNavigation();
     await Promise.all([loadCurrentUser(), loadCategories(), loadProducts(), refreshCart()]);
   })();
 })();
