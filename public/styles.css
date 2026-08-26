@@ -500,15 +500,92 @@ footer{ border-top:1px solid var(--line); padding: 56px 0 34px; }
 
 .account-menu{ position:relative; }
 .account-dropdown{
-  position:absolute; top:52px; right:0; width:220px; background:var(--surface); border:1px solid var(--line);
-  border-radius:14px; padding:8px; display:none; flex-direction:column; box-shadow:0 20px 40px -18px rgba(0,0,0,0.7);
+  position:absolute; top:52px; right:0; width:240px; background:var(--surface); border:1px solid rgba(255,255,255,0.12);
+  border-radius:16px; padding:8px; display:none; flex-direction:column; gap:4px;
+  box-shadow:0 24px 50px -15px rgba(0,0,0,0.85), 0 0 30px rgba(122,34,255,0.15);
+  backdrop-filter: blur(16px);
+  z-index: 100;
 }
 .account-dropdown.open{ display:flex; }
-.account-dropdown .who{ padding:10px 12px 12px; border-bottom:1px solid var(--line); margin-bottom:6px; }
-.account-dropdown .who b{ display:block; font-size:14px; }
-.account-dropdown .who span{ font-size:12px; color:var(--text-faint); }
-.account-dropdown button{ text-align:left; padding:9px 12px; border-radius:8px; background:none; border:none; color:var(--text-dim); font-size:13.5px; cursor:pointer; }
-.account-dropdown button:hover{ background:var(--surface-2); color:var(--text); }
+.account-dropdown .who{ padding:12px 14px; border-bottom:1px solid var(--line); margin-bottom:4px; }
+.account-dropdown .who b{ display:block; font-size:14px; color:#fff; }
+.account-dropdown .who span{ font-size:12px; color:var(--text-faint); word-break: break-all; }
+.account-dropdown button{
+  display:flex; align-items:center; justify-content:space-between; width:100%;
+  padding:10px 14px; border-radius:10px; background:none; border:none; color:var(--text-dim);
+  font-size:13.5px; font-weight:500; cursor:pointer; transition: all .2s ease;
+}
+.account-dropdown button .label-wrap{ display:flex; align-items:center; gap:10px; }
+.account-dropdown button:hover{ background:var(--surface-2); color:#fff; transform:translateX(2px); }
+.account-dropdown button.signout-btn:hover{ color:var(--red); background:rgba(255,84,112,0.1); }
+
+/* Google Drive Download Buttons & Purchases UI */
+.btn-drive-download {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: linear-gradient(135deg, #2563eb, #7c3aed);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #fff !important;
+  font-family: var(--ff-body);
+  font-size: 12.5px;
+  font-weight: 600;
+  text-decoration: none !important;
+  padding: 8px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.3);
+}
+.btn-drive-download:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(37, 99, 235, 0.5), 0 0 15px rgba(124, 58, 237, 0.4);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+.btn-drive-download svg {
+  flex: none;
+}
+.order-drive-box {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px dashed rgba(56, 189, 248, 0.35);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin: 16px 0;
+  text-align: left;
+}
+.order-drive-box-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+  font-weight: 600;
+  color: #38bdf8;
+}
+.order-drive-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.order-drive-item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+.order-drive-item-name {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: #fff;
+}
+.order-drive-item-sub {
+  font-size: 11.5px;
+  color: var(--text-faint);
+}
 
 .spinner{ width:16px; height:16px; border-radius:50%; border:2px solid rgba(255,255,255,0.3); border-top-color:#fff; display:inline-block; animation: spin .7s linear infinite; }
 @keyframes spin{ to{ transform:rotate(360deg); } }

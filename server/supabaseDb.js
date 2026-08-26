@@ -13,6 +13,7 @@ function toSnakeCase(product) {
   if ('itemCount' in copy) { copy.item_count = copy.itemCount; delete copy.itemCount; }
   if ('reviewCount' in copy) { copy.review_count = copy.reviewCount; delete copy.reviewCount; }
   if ('previewVideo' in copy) { copy.preview_video = copy.previewVideo; delete copy.previewVideo; }
+  if ('driveLink' in copy) { copy.drive_link = copy.driveLink; delete copy.driveLink; }
   if ('filePath' in copy) { copy.file_path = copy.filePath; delete copy.filePath; }
   if ('createdAt' in copy) { copy.created_at = copy.createdAt; delete copy.createdAt; }
   if ('updatedAt' in copy) { copy.updated_at = copy.updatedAt; delete copy.updatedAt; }
@@ -38,6 +39,7 @@ function toCamelCase(row) {
     bestseller: Boolean(row.bestseller),
     gradient: row.gradient || 'linear-gradient(135deg, #e535ab, #7a22ff)',
     previewVideo: row.preview_video || row.previewVideo || null,
+    driveLink: row.drive_link || row.driveLink || null,
     filePath: row.file_path || row.filePath || null,
     createdAt: row.created_at || row.createdAt || new Date().toISOString(),
   };

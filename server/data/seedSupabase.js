@@ -22,10 +22,22 @@ async function seed() {
   console.log(`📦 Found ${products.length} local products to upload...`);
   const rows = products.map(toSnakeCase);
 
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from('products')
     .upsert(rows, { onConflict: 'id' })
     .select();
+
+  if (error && String(error.message || '').includes('drive_link')) {
+    console.warn('⚠️ drive_link column not created in Supabase yet. Upserting standard fields...');
+    const fallbackRows = rows.map((r) => {
+      const copy = { ...r };
+      delete copy.drive_link;
+      return copy;
+    });
+    const res = await supabase.from('products').upsert(fallbackRows, { onConflict: 'id' }).select();
+    error = res.error;
+    data = res.data;
+  }
 
   if (error) {
     console.error('❌ Supabase Upsert Error:', error.message);
@@ -33,11 +45,11 @@ async function seed() {
     process.exit(1);
   }
 
-  console.log(`✅ Successfully seeded ${rows.length} products to Supabase PostgreSQL!`);
+  console.log(`✅ Successfully seeded ${data ? data.length : rows.length} products to Supabase PostgreSQL!`);
   process.exit(0);
 }
 
 seed().catch((err) => {
-  console.error('❌ Unexpected error:', err);
+  console.error('❌ Unexpected error:', err.message || err);
   process.exit(1);
 });

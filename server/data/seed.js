@@ -21,6 +21,7 @@ const products = [
     reviewCount: 214,
     bestseller: true,
     gradient: 'linear-gradient(135deg,#1a0f00,#ff8a3d 55%,#ffe08a)',
+    driveLink: 'https://drive.google.com/drive/folders/1GoldenHourWarmth_ShreeStudio_Presets',
   },
   {
     id: 'p2',
@@ -39,6 +40,7 @@ const products = [
     reviewCount: 132,
     bestseller: true,
     gradient: 'linear-gradient(135deg,#001220,#1fb6c9 55%,#8bffe0)',
+    driveLink: 'https://drive.google.com/drive/folders/1ArcticFrostRetouch_ShreeStudio_Actions',
   },
   {
     id: 'p3',
@@ -57,6 +59,7 @@ const products = [
     reviewCount: 301,
     bestseller: true,
     gradient: 'linear-gradient(135deg,#12001f,#8b5cf6 55%,#ff3d81)',
+    driveLink: 'https://drive.google.com/drive/folders/1NeonNightsColorPack_ShreeStudio_LUTs',
   },
   {
     id: 'p4',
@@ -75,6 +78,7 @@ const products = [
     reviewCount: 88,
     bestseller: false,
     gradient: 'linear-gradient(135deg,#0a0a0a,#666 55%,#d6b46a)',
+    driveLink: 'https://drive.google.com/drive/folders/1MonoNoirTitleKit_ShreeStudio_Templates',
   },
   {
     id: 'p5',
@@ -93,6 +97,7 @@ const products = [
     reviewCount: 176,
     bestseller: false,
     gradient: 'linear-gradient(135deg,#001a12,#0fbf8f 55%,#c9ff6b)',
+    driveLink: 'https://drive.google.com/drive/folders/1FreshMintEditorial_ShreeStudio_Presets',
   },
   {
     id: 'p6',
@@ -111,6 +116,7 @@ const products = [
     reviewCount: 97,
     bestseller: false,
     gradient: 'linear-gradient(135deg,#1a0006,#ff3d81 55%,#ffb020)',
+    driveLink: 'https://drive.google.com/drive/folders/1SunsetBlazeActions_ShreeStudio_Photoshop',
   },
   {
     id: 'p7',
@@ -129,6 +135,7 @@ const products = [
     reviewCount: 65,
     bestseller: false,
     gradient: 'linear-gradient(160deg,#2a1a3d,#ff7a52 55%,#ffce6b)',
+    driveLink: 'https://drive.google.com/drive/folders/1SunsetGrainMobile_ShreeStudio_Presets',
   },
   {
     id: 'p8',
@@ -147,11 +154,12 @@ const products = [
     reviewCount: 143,
     bestseller: false,
     gradient: 'linear-gradient(160deg,#001b2e,#00c2d1 45%,#8bffe0)',
+    driveLink: 'https://drive.google.com/drive/folders/1CyanFrostPanel_ShreeStudio_Retouch',
   },
 ];
 
 write('products', products).then(() => {
-  console.log(`Seeded ${products.length} products.`);
+  console.log(`Seeded ${products.length} products with Google Drive links.`);
 });
 
 module.exports = products;

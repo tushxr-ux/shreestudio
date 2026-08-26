@@ -102,7 +102,7 @@ router.post('/:id/reviews', requireAuth, async (req, res) => {
 
 // POST /api/products — Add a new preset/pack (admin). Optional previewVideo file.
 router.post('/', requireAdmin, handlePreviewUpload, async (req, res) => {
-  const { name, category, categoryLabel, price, compareAtPrice, tagline, description, format, itemCount, gradient } = req.body || {};
+  const { name, category, categoryLabel, price, compareAtPrice, tagline, description, format, itemCount, gradient, driveLink } = req.body || {};
 
   if (!name || !String(name).trim() || String(name).trim().length > 200) {
     if (req.file) removePreviewFile(publicPreviewUrl(req.file.filename));
@@ -142,6 +142,7 @@ router.post('/', requireAdmin, handlePreviewUpload, async (req, res) => {
     bestseller: false,
     gradient: gradient || 'linear-gradient(135deg, #e535ab, #7a22ff)',
     previewVideo: req.file ? publicPreviewUrl(req.file.filename) : null,
+    driveLink: driveLink ? stripHtml(String(driveLink).trim()) : 'https://drive.google.com/drive/folders/shreestudio-preset-downloads',
     createdAt: new Date().toISOString(),
   };
 

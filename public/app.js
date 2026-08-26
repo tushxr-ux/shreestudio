@@ -762,24 +762,56 @@
 
   const orderModal = $('#orderModal');
   function showOrderSuccess(order, emailSent = true, userEmail = '') {
-    const paymentMethodLabel = order.paymentId ? `Paid via Razorpay (${order.paymentId.slice(-10)})` : 'Paid';
+    const paymentMethodLabel = order.paymentId ? `Paid via Razorpay (${order.paymentId.slice(-10)})` : 'Paid & Verified';
     const emailNotice = userEmail || (state.user ? state.user.email : '');
     $('#orderBody').innerHTML = `
       <div class="order-success">
         <div class="check">✓</div>
         ${emailNotice ? `<div class="email-sent-badge"><span class="dot"></span><span>Receipt sent to ${escapeHtml(emailNotice)}</span></div>` : ''}
-        <h3>Order confirmed</h3>
+        <h3>Order Confirmed! 🎉</h3>
         <p>Order #${escapeHtml(order.id.slice(-8))} — ${paymentMethodLabel}</p>
+        
+        <div class="order-drive-box">
+          <div class="order-drive-box-head">
+            <span>⚡ Instant Google Drive Downloads:</span>
+          </div>
+          ${order.items
+            .map(
+              (i) => `
+            <div class="order-drive-item">
+              <div>
+                <div class="order-drive-item-name">${escapeHtml(i.name)}</div>
+                <div class="order-drive-item-sub">Qty: ${i.quantity} · ${money(i.lineTotal || i.price)}</div>
+              </div>
+              <a href="${escapeHtml(i.driveLink || 'https://drive.google.com')}" target="_blank" rel="noopener noreferrer" class="btn-drive-download">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Open Google Drive
+              </a>
+            </div>`
+            )
+            .join('')}
+        </div>
+
         <div class="order-items">
           ${order.items
             .map((i) => `<div class="oi-row"><span>${escapeHtml(i.name)} × ${i.quantity}</span><b>${money(i.lineTotal)}</b></div>`)
             .join('')}
-          <div class="oi-total"><span>Total</span><span>${money(order.subtotal)}</span></div>
+          <div class="oi-total"><span>Total Paid</span><span>${money(order.subtotal)}</span></div>
         </div>
-        <button class="btn btn-primary" style="width:100%;" id="orderCloseBtn">Download Presets Now</button>
+        <div style="display:flex; gap:10px; margin-top:14px;">
+          <button class="btn btn-ghost" style="flex:1;" id="orderCloseBtn">Back to Store</button>
+          <button class="btn btn-primary" style="flex:1;" id="orderViewPurchasesBtn">My Purchases</button>
+        </div>
       </div>`;
     openLayer(orderModal);
     $('#orderCloseBtn').addEventListener('click', () => closeLayer(orderModal));
+    const viewPurchasesBtn = $('#orderViewPurchasesBtn');
+    if (viewPurchasesBtn) {
+      viewPurchasesBtn.addEventListener('click', () => {
+        closeLayer(orderModal);
+        showOrderHistory();
+      });
+    }
   }
 
   // ================= AUTH =================
@@ -944,8 +976,17 @@
         </button>
         <div class="account-dropdown" id="accountDropdown">
           <div class="who"><b>${escapeHtml(state.user.name)}</b><span>${escapeHtml(state.user.email)}</span></div>
-          <button id="viewOrdersBtn">Order history</button>
-          <button id="signOutBtn">Sign out</button>
+          <button id="viewCartMenuBtn">
+            <span class="label-wrap">🛒 My Cart</span>
+            <span style="font-family:var(--ff-mono); font-size:11.5px; background:var(--surface-2); border:1px solid var(--line); padding:2px 8px; border-radius:999px;">${state.cart.count || 0}</span>
+          </button>
+          <button id="viewOrdersBtn">
+            <span class="label-wrap">📦 My Purchases</span>
+            <span style="font-size:11.5px; color:var(--emerald); font-weight:600;">✓ Downloads</span>
+          </button>
+          <button id="signOutBtn" class="signout-btn">
+            <span class="label-wrap">🚪 Sign out</span>
+          </button>
         </div>
       </div>`;
     const dropdown = $('#accountDropdown');
@@ -954,6 +995,14 @@
       dropdown.classList.toggle('open');
     });
     document.addEventListener('click', () => dropdown.classList.remove('open'), { once: true });
+    
+    const cartMenuBtn = $('#viewCartMenuBtn');
+    if (cartMenuBtn) {
+      cartMenuBtn.addEventListener('click', () => {
+        openLayer(cartDrawer);
+        refreshCart();
+      });
+    }
     $('#viewOrdersBtn').addEventListener('click', showOrderHistory);
     $('#signOutBtn').addEventListener('click', signOut);
   }
@@ -962,18 +1011,47 @@
     try {
       const data = await api('/orders');
       if (data.orders.length === 0) {
-        $('#orderBody').innerHTML = `<div class="order-success"><h3>No orders yet</h3><p>Anything you buy will show up here with instant download access.</p><button class="btn btn-primary" style="width:100%;" id="orderCloseBtn">Close</button></div>`;
+        $('#orderBody').innerHTML = `
+          <div class="order-success">
+            <div style="font-size:38px; margin-bottom:12px;">📦</div>
+            <h3>No purchases yet</h3>
+            <p>Any preset packs you buy will show up here with permanent Google Drive download access.</p>
+            <button class="btn btn-primary" style="width:100%;" id="orderCloseBtn">Explore Presets</button>
+          </div>`;
       } else {
         $('#orderBody').innerHTML = `
           <div style="padding:6px 2px;">
-            <h3 style="font-family:var(--ff-display); font-size:19px; margin-bottom:16px;">Order history</h3>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+              <h3 style="font-family:var(--ff-display); font-size:20px; margin:0;">My Purchases & Downloads</h3>
+              <span style="font-family:var(--ff-mono); font-size:12px; color:var(--emerald); background:rgba(52,211,153,0.1); border:1px solid rgba(52,211,153,0.25); padding:3px 8px; border-radius:6px;">${data.orders.length} Order${data.orders.length === 1 ? '' : 's'}</span>
+            </div>
             ${data.orders
               .map(
                 (o) => `
-              <div class="order-items" style="margin-bottom:14px;">
-                <div class="oi-row"><span>Order #${escapeHtml(o.id.slice(-8))}</span><b>${new Date(o.createdAt).toLocaleDateString()}</b></div>
-                ${o.items.map((i) => `<div class="oi-row"><span>${escapeHtml(i.name)} × ${i.quantity}</span><b>${money(i.lineTotal)}</b></div>`).join('')}
-                <div class="oi-total"><span>Total</span><span>${money(o.subtotal)}</span></div>
+              <div class="order-items" style="margin-bottom:16px; background:var(--surface); border:1px solid var(--line);">
+                <div class="oi-row" style="padding-bottom:10px; border-bottom:1px solid var(--line); margin-bottom:8px;">
+                  <span><b>Order #${escapeHtml(o.id.slice(-8))}</b></span>
+                  <span style="color:var(--text-faint); font-family:var(--ff-mono); font-size:12px;">${new Date(o.createdAt).toLocaleDateString()}</span>
+                </div>
+                ${o.items
+                  .map(
+                    (i) => `
+                  <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px dashed rgba(255,255,255,0.06);">
+                    <div>
+                      <div style="font-weight:600; color:#fff; font-size:14px;">${escapeHtml(i.name)}</div>
+                      <div style="font-size:11.5px; color:var(--text-faint); font-family:var(--ff-mono);">Qty: ${i.quantity} · ${money(i.lineTotal || i.price)}</div>
+                    </div>
+                    <a href="${escapeHtml(i.driveLink || 'https://drive.google.com')}" target="_blank" rel="noopener noreferrer" class="btn-drive-download">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                      Open Drive
+                    </a>
+                  </div>`
+                  )
+                  .join('')}
+                <div class="oi-total" style="margin-top:10px; padding-top:10px;">
+                  <span>Total Paid</span>
+                  <span style="color:var(--magenta);">${money(o.subtotal)}</span>
+                </div>
               </div>`
               )
               .join('')}
@@ -1130,6 +1208,8 @@
       formData.append('description', $('#projDescription').value.trim());
       const previewFile = $('#projPreviewVideo') && $('#projPreviewVideo').files[0];
       if (previewFile) formData.append('previewVideo', previewFile);
+      const driveLink = $('#projDriveLink') ? $('#projDriveLink').value.trim() : '';
+      if (driveLink) formData.append('driveLink', driveLink);
 
       try {
         const data = await api('/products', {

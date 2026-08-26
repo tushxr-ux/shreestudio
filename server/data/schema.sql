@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS public.products (
   bestseller BOOLEAN DEFAULT FALSE,
   gradient TEXT DEFAULT 'linear-gradient(135deg, #e535ab, #7a22ff)',
   preview_video TEXT,
+  drive_link TEXT, -- Google Drive preset download link for customers
   file_path TEXT, -- path to downloadable digital zip/asset in Supabase Storage
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()

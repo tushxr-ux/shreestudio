@@ -54,9 +54,18 @@ async function sendOrderConfirmationEmail({ userEmail, userName, order }) {
     .map(
       (item) => `
       <tr style="border-bottom: 1px solid #2a2b36;">
-        <td style="padding: 12px 16px; color: #ffffff; font-weight: 500;">${item.name}</td>
-        <td style="padding: 12px 16px; color: #a1a1aa; text-align: center;">x${item.quantity}</td>
-        <td style="padding: 12px 16px; color: #a78bfa; font-weight: 600; text-align: right;">₹${item.lineTotal || item.price}</td>
+        <td style="padding: 14px 16px; color: #ffffff; font-weight: 500;">
+          ${item.name}
+          ${item.driveLink ? `
+            <div style="margin-top: 6px;">
+              <a href="${item.driveLink}" target="_blank" style="display: inline-block; background: #1a1b2e; color: #38bdf8; border: 1px solid #38bdf8; font-size: 11.5px; font-weight: 600; text-decoration: none; padding: 4px 10px; border-radius: 6px;">
+                📥 Open Google Drive Folder
+              </a>
+            </div>
+          ` : ''}
+        </td>
+        <td style="padding: 14px 16px; color: #a1a1aa; text-align: center;">x${item.quantity}</td>
+        <td style="padding: 14px 16px; color: #a78bfa; font-weight: 600; text-align: right;">₹${item.lineTotal || item.price}</td>
       </tr>
     `
     )

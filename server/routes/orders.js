@@ -16,8 +16,10 @@ function hydrateCart(cart) {
       return {
         productId: product.id,
         name: product.name,
+        categoryLabel: product.categoryLabel || '',
         price: product.price,
         quantity: item.quantity,
+        driveLink: product.driveLink || 'https://drive.google.com/drive/folders/shreestudio-preset-downloads',
         lineTotal: Math.round(product.price * item.quantity * 100) / 100,
       };
     })
