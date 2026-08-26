@@ -61,7 +61,7 @@ if (read('products').length === 0) {
 app.get('/api/config', (_req, res) => {
   const razorpayKeyId = process.env.RAZORPAY_KEY_ID || '';
   const supabaseUrl = process.env.SUPABASE_URL || '';
-  const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || '';
+  const supabaseAnonKey = process.env.SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY || '';
 
   res.json({
     razorpayKeyId: razorpayKeyId.includes('placeholder') ? '' : razorpayKeyId,
