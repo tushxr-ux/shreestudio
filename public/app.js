@@ -910,42 +910,56 @@
 
   if (googleBtn) {
     googleBtn.addEventListener('click', async () => {
-      if (window.supabase && typeof window.supabase.createClient === 'function') {
-        toast('Redirecting to Google OAuth via Supabase…', 'info');
-        try {
-          const cfg = await api('/config');
-          if (!cfg.supabaseUrl || !cfg.supabaseAnonKey) {
-            toast('Supabase not configured. Add keys in server/.env', 'info');
-            return;
-          }
-          const sb = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
-          await sb.auth.signInWithOAuth({ provider: 'google' });
-        } catch (_e) {
-          toast('Supabase Google OAuth setup ready. Add keys in server/.env', 'info');
+      try {
+        const cfg = await api('/config');
+        if (!cfg.supabaseUrl || !cfg.supabaseAnonKey) {
+          toast('Supabase keys not configured in server/.env', 'error');
+          return;
         }
-      } else {
-        toast('Google Sign in ready via Supabase OAuth', 'info');
+        if (!window.supabase || typeof window.supabase.createClient !== 'function') {
+          toast('Loading Google Sign-in… please tap again', 'info');
+          return;
+        }
+        const sb = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
+        const { error } = await sb.auth.signInWithOAuth({
+          provider: 'google',
+          options: {
+            redirectTo: window.location.origin,
+          },
+        });
+        if (error) {
+          toast(error.message, 'error');
+        }
+      } catch (err) {
+        toast(err.message || 'Google Sign-in error', 'error');
       }
     });
   }
 
   if (appleBtn) {
     appleBtn.addEventListener('click', async () => {
-      if (window.supabase && typeof window.supabase.createClient === 'function') {
-        toast('Redirecting to Apple (iOS) OAuth via Supabase…', 'info');
-        try {
-          const cfg = await api('/config');
-          if (!cfg.supabaseUrl || !cfg.supabaseAnonKey) {
-            toast('Supabase not configured. Add keys in server/.env', 'info');
-            return;
-          }
-          const sb = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
-          await sb.auth.signInWithOAuth({ provider: 'apple' });
-        } catch (_e) {
-          toast('Supabase Apple OAuth setup ready. Add keys in server/.env', 'info');
+      try {
+        const cfg = await api('/config');
+        if (!cfg.supabaseUrl || !cfg.supabaseAnonKey) {
+          toast('Supabase keys not configured in server/.env', 'error');
+          return;
         }
-      } else {
-        toast('Apple (iOS) Sign in ready via Supabase OAuth', 'info');
+        if (!window.supabase || typeof window.supabase.createClient !== 'function') {
+          toast('Loading Apple Sign-in… please tap again', 'info');
+          return;
+        }
+        const sb = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
+        const { error } = await sb.auth.signInWithOAuth({
+          provider: 'apple',
+          options: {
+            redirectTo: window.location.origin,
+          },
+        });
+        if (error) {
+          toast(error.message, 'error');
+        }
+      } catch (err) {
+        toast(err.message || 'Apple Sign-in error', 'error');
       }
     });
   }
@@ -962,7 +976,7 @@
       $('#signInBtn').addEventListener('click', () => openAuth('login'));
       return;
     }
-    const initials = state.user.name
+    const initials = (state.user.name || 'User')
       .split(' ')
       .map((s) => s[0])
       .slice(0, 2)
@@ -972,10 +986,10 @@
       <div class="account-menu">
         <button class="account-chip" id="accountChip">
           <span class="av">${escapeHtml(initials)}</span>
-          <span>${escapeHtml(state.user.name.split(' ')[0])}</span>
+          <span>${escapeHtml((state.user.name || 'User').split(' ')[0])}</span>
         </button>
         <div class="account-dropdown" id="accountDropdown">
-          <div class="who"><b>${escapeHtml(state.user.name)}</b><span>${escapeHtml(state.user.email)}</span></div>
+          <div class="who"><b>${escapeHtml(state.user.name || 'User')}</b><span>${escapeHtml(state.user.email || '')}</span></div>
           <button id="viewCartMenuBtn">
             <span class="label-wrap">🛒 My Cart</span>
             <span style="font-family:var(--ff-mono); font-size:11.5px; background:var(--surface-2); border:1px solid var(--line); padding:2px 8px; border-radius:999px;">${state.cart.count || 0}</span>
@@ -1069,6 +1083,15 @@
     try {
       await api('/auth/logout', { method: 'POST' });
     } catch (_e) { /* ignore */ }
+    if (window.supabase && typeof window.supabase.createClient === 'function') {
+      try {
+        const cfg = await api('/config');
+        if (cfg.supabaseUrl && cfg.supabaseAnonKey) {
+          const sb = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
+          await sb.auth.signOut();
+        }
+      } catch (_e) {}
+    }
     state.user = null;
     renderAuthArea();
     toast('Signed out', 'info');
@@ -1083,6 +1106,25 @@
     } catch (_e) {
       state.user = null;
     }
+
+    if (!state.user && window.supabase && typeof window.supabase.createClient === 'function') {
+      try {
+        const cfg = await api('/config');
+        if (cfg.supabaseUrl && cfg.supabaseAnonKey) {
+          const sb = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
+          const { data: { session } } = await sb.auth.getSession();
+          if (session && session.user) {
+            state.user = {
+              id: session.user.id,
+              name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.email.split('@')[0],
+              email: session.user.email,
+              isAdmin: session.user.email === 'admin@shreestudio.com',
+            };
+          }
+        }
+      } catch (_sErr) {}
+    }
+
     renderAuthArea();
     loadProducts();
   }
