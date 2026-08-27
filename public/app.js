@@ -170,29 +170,9 @@
     return '★'.repeat(full) + '☆'.repeat(5 - full);
   }
 
-  function previewClipHtml(p, className) {
-    if (!p.previewVideo) return '';
-    return `<video class="${className}" muted loop playsinline preload="metadata" src="${escapeHtml(p.previewVideo)}"></video>
-        <button type="button" class="preview-play" data-play-preview="${p.id}" aria-label="Play preview">▶ Preview</button>`;
-  }
-
-  function bindPreviewHovers(root) {
-    $$('.prod-card', root).forEach((card) => {
-      const video = card.querySelector('video.preview-video');
-      if (!video) return;
-      card.addEventListener('mouseenter', () => { video.play().catch(() => {}); });
-      card.addEventListener('mouseleave', () => { video.pause(); video.currentTime = 0; });
-    });
-    $$('[data-play-preview]', root).forEach((btn) => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const card = btn.closest('.prod-card');
-        const video = card && card.querySelector('video.preview-video');
-        if (!video) return;
-        if (video.paused) video.play().catch(() => {});
-        else video.pause();
-      });
-    });
+  function previewBadgeHtml(p) {
+    if (!p.previewUrl) return '';
+    return `<span class="preview-available-badge">▶ Preview available</span>`;
   }
 
   function productCardHtml(p) {
@@ -200,7 +180,7 @@
     return `
       <div class="prod-card" data-id="${p.id}">
         <div class="prod-media" style="background:${p.gradient}" data-quickview="${p.id}">
-          ${previewClipHtml(p, 'preview-video')}
+          ${previewBadgeHtml(p)}
           <span class="badge">${escapeHtml(p.tagline)}</span>
           ${p.bestseller ? '<span class="badge best">Bestseller</span>' : ''}
         </div>
@@ -213,17 +193,14 @@
               <span class="price">${money(p.price)}${p.compareAtPrice ? `<small>${money(p.compareAtPrice)}</small>` : ''}</span>
               <button class="add-btn" data-add="${p.id}">Add to cart</button>
             </div>
-            <button type="button" class="btn-see-preview ${p.previewVideo ? 'has-video' : ''}" data-see-preview="${p.id}">
+            <button type="button" class="btn-see-preview ${p.previewUrl ? 'has-video' : ''}" data-see-preview="${p.id}">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
               See Preview
             </button>
             ${isAdmin ? `
             <div class="admin-card-bar">
               <span style="color:var(--text-faint);">Admin</span>
-              <label class="admin-card-btn">
-                ${p.previewVideo ? '📹 Replace video' : '+ Upload video'}
-                <input type="file" accept="video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov" data-admin-card-upload="${p.id}" hidden>
-              </label>
+              <button type="button" class="admin-card-btn" data-admin-set-preview="${p.id}">🔗 Set Preview Link</button>
             </div>` : ''}
           </div>
         </div>
@@ -249,7 +226,6 @@
         return;
       }
       grid.innerHTML = data.products.map(productCardHtml).join('');
-      bindPreviewHovers(grid);
 
       $$('[data-add]', grid).forEach((btn) => {
         btn.addEventListener('click', (e) => {
@@ -266,17 +242,21 @@
           openVideoPreview(btn.dataset.seePreview);
         });
       });
-      $$('[data-admin-card-upload]', grid).forEach((input) => {
-        input.addEventListener('change', async (e) => {
+      // Admin: set a YouTube/Drive preview link for a product
+      $$('[data-admin-set-preview]', grid).forEach((btn) => {
+        btn.addEventListener('click', async (e) => {
           e.stopPropagation();
-          const file = input.files && input.files[0];
-          if (!file) return;
-          const formData = new FormData();
-          formData.append('previewVideo', file);
+          const pid = btn.dataset.adminSetPreview;
+          const prod = state.products.find((pr) => pr.id === pid);
+          const current = (prod && prod.previewUrl) || '';
+          const url = window.prompt('Enter YouTube or Google Drive URL for this product preview:', current);
+          if (url === null) return; // cancelled
           try {
-            toast('Uploading preview video…', 'info');
-            await api(`/products/${input.dataset.adminCardUpload}/preview`, { method: 'POST', body: formData });
-            toast('Preview video saved successfully!', 'success');
+            await api(`/products/${pid}/preview`, {
+              method: 'POST',
+              body: JSON.stringify({ previewUrl: url.trim() }),
+            });
+            toast('Preview link saved!', 'success');
             await loadProducts();
           } catch (err) {
             toast(err.message, 'error');
@@ -336,13 +316,24 @@
       : '<p style="color:var(--text-faint); font-size:13px;">No reviews yet — be the first to leave one.</p>';
 
     const isAdmin = Boolean(state.user && state.user.isAdmin);
-    const qvMedia = p.previewVideo
-      ? `<video class="qv-video" controls playsinline preload="metadata" src="${escapeHtml(p.previewVideo)}"></video>`
-      : '';
+    const qvPreviewBtn = p.previewUrl
+      ? `<button type="button" class="btn-see-preview has-video" style="margin-top:10px;" id="qvSeePreviewBtn">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          Watch Preview
+         </button>`
+      : `<button type="button" class="btn-see-preview" style="margin-top:10px; opacity:0.5; cursor:default;" disabled>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          No preview available
+         </button>`;
 
     $('#quickviewBody').innerHTML = `
       <div class="quickview">
-        <div class="qv-media" style="background:${p.gradient}">${qvMedia}</div>
+        <div class="qv-media" style="background:${p.gradient}">
+          <div class="qv-gradient-preview"
+               style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:10px;">
+            ${p.previewUrl ? `<span style="font-size:32px;">▶</span><span style="font-size:13px;color:rgba(255,255,255,0.7);">Preview on YouTube/Drive</span>` : `<span style="font-size:32px;opacity:0.4;">🎬</span>`}
+          </div>
+        </div>
         <div class="qv-info">
           <span class="qv-cat">${escapeHtml(p.categoryLabel)}</span>
           <h3>${escapeHtml(p.name)}</h3>
@@ -362,17 +353,11 @@
             <button class="qty-btn" id="qvPlus">+</button>
           </div>
           <button class="btn btn-primary" style="width:100%;" id="qvAdd">Add to cart</button>
-          <button type="button" class="btn-see-preview ${p.previewVideo ? 'has-video' : ''}" style="margin-top:10px;" id="qvSeePreviewBtn">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-            See Full Video Preview
-          </button>
+          ${qvPreviewBtn}
           ${isAdmin ? `
           <div style="margin-top:12px; padding:10px 12px; background:var(--bg-soft); border:1px dashed var(--line); border-radius:10px; display:flex; justify-content:space-between; align-items:center; font-size:12px;">
-            <span style="color:var(--text-faint);">Admin Video:</span>
-            <label style="color:var(--cyan); cursor:pointer; text-decoration:underline; font-family:var(--ff-mono);">
-              ${p.previewVideo ? '📹 Replace Video' : '+ Upload Video'}
-              <input type="file" accept="video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov" id="qvAdminUploadInput" hidden>
-            </label>
+            <span style="color:var(--text-faint);">Admin Preview Link:</span>
+            <button type="button" style="color:var(--cyan); cursor:pointer; text-decoration:underline; font-family:var(--ff-mono); background:none; border:none; font-size:12px;" id="qvAdminSetPreviewBtn">🔗 ${p.previewUrl ? 'Update Link' : 'Set Link'}</button>
           </div>` : ''}
 
           <div class="reviews-list">${reviewsHtml}</div>
@@ -399,25 +384,24 @@
     $('#qvPlus').addEventListener('click', () => { qty = Math.min(20, qty + 1); qtyEl.textContent = qty; });
     $('#qvAdd').addEventListener('click', () => addToCart(p.id, qty));
 
-    const qvPreviewBtn = $('#qvSeePreviewBtn');
-    if (qvPreviewBtn) {
-      qvPreviewBtn.addEventListener('click', () => {
-        closeLayer(quickviewModal);
-        openVideoPreview(p.id);
+    const qvPreviewBtnEl = $('#qvSeePreviewBtn');
+    if (qvPreviewBtnEl && p.previewUrl) {
+      qvPreviewBtnEl.addEventListener('click', () => {
+        window.open(p.previewUrl, '_blank', 'noopener,noreferrer');
       });
     }
 
-    const qvUploadInput = $('#qvAdminUploadInput');
-    if (qvUploadInput) {
-      qvUploadInput.addEventListener('change', async () => {
-        const file = qvUploadInput.files && qvUploadInput.files[0];
-        if (!file) return;
-        const formData = new FormData();
-        formData.append('previewVideo', file);
+    const qvAdminBtn = $('#qvAdminSetPreviewBtn');
+    if (qvAdminBtn) {
+      qvAdminBtn.addEventListener('click', async () => {
+        const url = window.prompt('Enter YouTube or Google Drive URL for preview:', p.previewUrl || '');
+        if (url === null) return;
         try {
-          toast('Uploading preview video…', 'info');
-          await api(`/products/${p.id}/preview`, { method: 'POST', body: formData });
-          toast('Preview video saved!', 'success');
+          await api(`/products/${p.id}/preview`, {
+            method: 'POST',
+            body: JSON.stringify({ previewUrl: url.trim() }),
+          });
+          toast('Preview link saved!', 'success');
           await loadProducts();
           openQuickview(p.id);
         } catch (err) {
@@ -452,18 +436,9 @@
     closeLayer(quickviewModal);
   });
 
-  // ================= DEDICATED VIDEO PREVIEW MODAL =================
-  const videoPreviewModal = $('#videoPreviewModal');
-  const closeVideoPreviewBtn = $('#closeVideoPreview');
-  if (closeVideoPreviewBtn && videoPreviewModal) {
-    closeVideoPreviewBtn.addEventListener('click', () => {
-      $$('video', videoPreviewModal).forEach((v) => v.pause());
-      closeLayer(videoPreviewModal);
-    });
-  }
-
+  // ================= DEDICATED VIDEO PREVIEW =================
+  // Instead of embedding video, open the YouTube/Google Drive link in a new tab
   async function openVideoPreview(id) {
-    if (!videoPreviewModal) return;
     let p = state.products.find((item) => item.id === id || item.slug === id);
     if (!p) {
       try {
@@ -476,82 +451,11 @@
     }
     if (!p) return;
 
-    const isAdmin = Boolean(state.user && state.user.isAdmin);
-    const body = $('#videoPreviewBody');
-
-    body.innerHTML = `
-      <div class="cinema-view">
-        <div class="cinema-player-box" style="background:${p.gradient}">
-          ${p.previewVideo ? `
-            <video controls autoplay playsinline loop preload="auto" src="${escapeHtml(p.previewVideo)}"></video>
-          ` : `
-            <div class="cinema-no-video">
-              <div class="cine-badge">⚡ Preset Video Preview</div>
-              <h4 style="font-family:var(--ff-display); font-size:22px; margin-bottom:8px; color:#fff;">${escapeHtml(p.name)}</h4>
-              <p style="color:var(--text-dim); font-size:13.5px; max-width:320px; margin-bottom:16px;">
-                A demo video preview is being rendered for this preset pack. You can still purchase and download the files instantly.
-              </p>
-              ${isAdmin ? `
-                <label class="btn btn-ghost sm" style="cursor:pointer; font-size:12px; border-radius:8px;">
-                  + Upload Video for this pack
-                  <input type="file" accept="video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov" id="modalPreviewUploadInput" hidden>
-                </label>
-              ` : ''}
-            </div>
-          `}
-        </div>
-        <div class="cinema-sidebar">
-          <span class="cat">${escapeHtml(p.categoryLabel)}</span>
-          <h3>${escapeHtml(p.name)}</h3>
-          <span class="tagline-pill">${escapeHtml(p.tagline || 'Pro Edition')}</span>
-          <p class="desc">${escapeHtml(p.description)}</p>
-          
-          <div class="cinema-meta-grid">
-            <div><span>Presets:</span><b>${p.itemCount} Items</b></div>
-            <div><span>Format:</span><b>${escapeHtml(p.format)}</b></div>
-            <div><span>Rating:</span><b>${p.rating.toFixed(1)} ★ (${p.reviewCount})</b></div>
-            <div><span>Access:</span><b>Instant .ZIP</b></div>
-          </div>
-
-          <div class="cinema-foot">
-            <div class="cinema-price-row">
-              <span class="price">${money(p.price)}${p.compareAtPrice ? `<small style="color:var(--text-faint); text-decoration:line-through; font-size:13px; margin-left:6px;">${money(p.compareAtPrice)}</small>` : ''}</span>
-              <span style="font-size:12px; color:var(--emerald); font-weight:500;">✓ Instant Delivery</span>
-            </div>
-            <button class="btn btn-primary" style="width:100%;" id="cinemaAddBtn">Add to cart — ${money(p.price)}</button>
-          </div>
-        </div>
-      </div>
-    `;
-
-    openLayer(videoPreviewModal);
-
-    const addBtn = $('#cinemaAddBtn', body);
-    if (addBtn) {
-      addBtn.addEventListener('click', () => {
-        addToCart(p.id, 1);
-        $$('video', videoPreviewModal).forEach((v) => v.pause());
-        closeLayer(videoPreviewModal);
-      });
-    }
-
-    const uploadInput = $('#modalPreviewUploadInput', body);
-    if (uploadInput) {
-      uploadInput.addEventListener('change', async () => {
-        const file = uploadInput.files && uploadInput.files[0];
-        if (!file) return;
-        const formData = new FormData();
-        formData.append('previewVideo', file);
-        try {
-          toast('Uploading preview video…', 'info');
-          await api(`/products/${p.id}/preview`, { method: 'POST', body: formData });
-          toast('Preview video uploaded successfully!', 'success');
-          await loadProducts();
-          openVideoPreview(p.id);
-        } catch (err) {
-          toast(err.message, 'error');
-        }
-      });
+    if (p.previewUrl) {
+      // Open YouTube or Google Drive link in a new tab
+      window.open(p.previewUrl, '_blank', 'noopener,noreferrer');
+    } else {
+      toast('No preview available for this pack yet.', 'info');
     }
   }
 
@@ -1221,7 +1125,7 @@
   function renderManagePreviews(products) {
     const body = $('#managePreviewsBody');
     if (!products.length) {
-      body.innerHTML = '<p class="form-note" style="text-align:left;">No packs yet. Add a pack first, then upload a preview.</p>';
+      body.innerHTML = '<p class="form-note" style="text-align:left;">No packs yet. Add a pack first, then set a preview link.</p>';
       return;
     }
     body.innerHTML = products
@@ -1229,32 +1133,35 @@
         (p) => `
       <div class="preview-admin-row" data-id="${p.id}">
         <div class="preview-admin-thumb" style="background:${p.gradient}">
-          ${p.previewVideo ? `<video muted playsinline src="${escapeHtml(p.previewVideo)}"></video>` : ''}
+          ${p.previewUrl ? '<span style="font-size:20px;">▶</span>' : '<span style="font-size:20px;opacity:0.3;">🎬</span>'}
         </div>
         <div class="preview-admin-meta">
           <b>${escapeHtml(p.name)}</b>
-          <span>${escapeHtml(p.categoryLabel)} · ${p.previewVideo ? 'Preview uploaded' : 'No preview yet'}</span>
+          <span>${escapeHtml(p.categoryLabel)} · ${p.previewUrl ? '<a href="' + escapeHtml(p.previewUrl) + '" target="_blank" rel="noopener" style="color:var(--cyan);font-size:11px;">Preview link set ↗</a>' : 'No preview link'}</span>
           <div class="preview-admin-actions">
-            <label class="btn btn-ghost sm" style="font-size:12px; padding:6px 12px; border-radius:8px; cursor:pointer;">
-              ${p.previewVideo ? 'Replace video' : 'Upload video'}
-              <input type="file" accept="video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov" data-preview-upload="${p.id}" hidden>
-            </label>
-            ${p.previewVideo ? `<button type="button" class="btn btn-ghost sm" style="font-size:12px; padding:6px 12px; border-radius:8px;" data-preview-remove="${p.id}">Remove</button>` : ''}
+            <button type="button" class="btn btn-ghost sm" style="font-size:12px; padding:6px 12px; border-radius:8px;" data-preview-set="${p.id}">
+              ${p.previewUrl ? 'Update link' : 'Set link'}
+            </button>
+            ${p.previewUrl ? `<button type="button" class="btn btn-ghost sm" style="font-size:12px; padding:6px 12px; border-radius:8px;" data-preview-remove="${p.id}">Remove</button>` : ''}
           </div>
         </div>
       </div>`
       )
       .join('');
 
-    $$('[data-preview-upload]', body).forEach((input) => {
-      input.addEventListener('change', async () => {
-        const file = input.files && input.files[0];
-        if (!file) return;
-        const formData = new FormData();
-        formData.append('previewVideo', file);
+    $$('[data-preview-set]', body).forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const pid = btn.dataset.previewSet;
+        const prod = state.products.find((pr) => pr.id === pid);
+        const current = (prod && prod.previewUrl) || '';
+        const url = window.prompt('Enter YouTube or Google Drive URL for preview:\n(e.g. https://youtu.be/... or https://drive.google.com/...)', current);
+        if (url === null) return;
         try {
-          await api(`/products/${input.dataset.previewUpload}/preview`, { method: 'POST', body: formData });
-          toast('Preview video saved.', 'success');
+          await api(`/products/${pid}/preview`, {
+            method: 'POST',
+            body: JSON.stringify({ previewUrl: url.trim() }),
+          });
+          toast('Preview link saved.', 'success');
           await loadProducts();
           openManagePreviews();
         } catch (err) {
@@ -1266,7 +1173,7 @@
       btn.addEventListener('click', async () => {
         try {
           await api(`/products/${btn.dataset.previewRemove}/preview`, { method: 'DELETE' });
-          toast('Preview removed.', 'info');
+          toast('Preview link removed.', 'info');
           await loadProducts();
           openManagePreviews();
         } catch (err) {
@@ -1306,23 +1213,22 @@
   if (addProjectForm) {
     addProjectForm.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const formData = new FormData();
-      formData.append('name', $('#projName').value.trim());
-      formData.append('category', $('#projCategory').value);
-      formData.append('price', $('#projPrice').value);
-      formData.append('compareAtPrice', $('#projComparePrice').value);
-      formData.append('tagline', $('#projTagline').value.trim());
-      formData.append('itemCount', $('#projItemCount').value);
-      formData.append('description', $('#projDescription').value.trim());
-      const previewFile = $('#projPreviewVideo') && $('#projPreviewVideo').files[0];
-      if (previewFile) formData.append('previewVideo', previewFile);
-      const driveLink = $('#projDriveLink') ? $('#projDriveLink').value.trim() : '';
-      if (driveLink) formData.append('driveLink', driveLink);
+      const payload = {
+        name: $('#projName').value.trim(),
+        category: $('#projCategory').value,
+        price: $('#projPrice').value,
+        compareAtPrice: $('#projComparePrice').value,
+        tagline: $('#projTagline').value.trim(),
+        itemCount: $('#projItemCount').value,
+        description: $('#projDescription').value.trim(),
+        driveLink: $('#projDriveLink') ? $('#projDriveLink').value.trim() : '',
+        previewUrl: $('#projPreviewUrl') ? $('#projPreviewUrl').value.trim() : '',
+      };
 
       try {
         const data = await api('/products', {
           method: 'POST',
-          body: formData,
+          body: JSON.stringify(payload),
         });
         toast(`Published "${data.product.name}" to storefront!`, 'success');
         closeLayer(addProjectModal);

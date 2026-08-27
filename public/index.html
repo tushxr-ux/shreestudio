@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/styles.css?v=3.3">
+<link rel="stylesheet" href="/styles.css?v=4.0">
 <!-- Supabase SDK & Razorpay Payment SDK -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
@@ -339,28 +339,28 @@
         <textarea id="projDescription" placeholder="Describe the presets, color tones, and best camera profiles…" rows="3"></textarea>
       </div>
       <div class="field">
-        <label>Preview video (optional)</label>
-        <input type="file" id="projPreviewVideo" accept="video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov">
-        <p class="form-note" style="text-align:left; margin-top:8px;">MP4, WebM, or MOV — max 80MB. Shoppers see this before they buy.</p>
+        <label>YouTube or Google Drive Preview Link (optional)</label>
+        <input type="url" id="projPreviewUrl" placeholder="https://youtu.be/... or https://drive.google.com/...">
+        <p class="form-note" style="text-align:left; margin-top:6px;">Paste a YouTube video or Google Drive preview link. Shoppers open this when clicking 'See Preview'.</p>
       </div>
       <div class="field">
         <label>Google Drive Download Link</label>
         <input type="url" id="projDriveLink" placeholder="https://drive.google.com/drive/folders/...">
-        <p class="form-note" style="text-align:left; margin-top:6px;">Customers automatically receive this Google Drive link after payment.</p>
+        <p class="form-note" style="text-align:left; margin-top:6px;">Customers automatically receive this Google Drive download link after checkout.</p>
       </div>
       <button type="submit" class="btn btn-primary" style="width:100%;">Publish to Storefront</button>
     </form>
   </div>
 </div>
 
-<!-- ===== Admin: manage preview videos ===== -->
+<!-- ===== Admin: manage preview links ===== -->
 <div class="modal extra-wide" id="managePreviewsModal">
   <div class="modal-head">
-    <h3>Preview videos</h3>
+    <h3>Manage Preview Links</h3>
     <button class="icon-btn" id="closeManagePreviews">✕</button>
   </div>
   <div class="modal-body">
-    <p class="form-note" style="text-align:left; margin-top:0;">Upload a before/after or demo clip for each pack. Customers can play it on the shop card and in product details.</p>
+    <p class="form-note" style="text-align:left; margin-top:0;">Set a YouTube or Google Drive link for each pack. Clicking 'See Preview' redirects shoppers to watch without using server storage.</p>
     <div id="managePreviewsBody"></div>
   </div>
 </div>
@@ -394,6 +394,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
-  <script src="/app.js?v=3.3"></script>
+  <script src="/app.js?v=4.0"></script>
 </body>
 </html>

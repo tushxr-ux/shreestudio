@@ -320,7 +320,8 @@ section{ padding: 96px 0; position:relative; }
 .prod-body h4{ font-family:var(--ff-display); font-size:17px; margin:6px 0 6px; cursor:pointer; }
 .prod-rating{ font-size:12.5px; color:var(--text-dim); margin-bottom:10px; }
 .prod-rating .stars{ color:var(--amber); }
-.prod-foot{ display:flex; align-items:center; justify-content:space-between; margin-top:auto; padding-top:14px; }
+.prod-foot-stack{ display:flex; flex-direction:column; gap:8px; margin-top:auto; padding-top:14px; }
+.prod-foot{ display:flex; align-items:center; justify-content:space-between; }
 .price{ font-family:var(--ff-display); font-size:19px; }
 .price small{ color:var(--text-faint); font-family:var(--ff-mono); font-size:12px; text-decoration:line-through; margin-left:6px; font-weight:400;}
 .add-btn{
@@ -328,6 +329,43 @@ section{ padding: 96px 0; position:relative; }
   background: var(--surface-2); border:1px solid var(--line); color:var(--text); cursor:pointer; transition: all .2s;
 }
 .add-btn:hover{ background: linear-gradient(100deg, var(--violet), var(--magenta)); border-color:transparent; }
+
+.btn-see-preview{
+  display:inline-flex; align-items:center; justify-content:center; gap:6px;
+  width:100%; padding:8px 14px; font-size:12.5px; font-weight:600;
+  color:var(--text); background:rgba(255,255,255,0.04);
+  border:1px solid rgba(255,255,255,0.1); border-radius:10px;
+  cursor:pointer; transition:all 0.2s ease;
+  font-family:var(--ff-body);
+}
+.btn-see-preview:hover{
+  background:rgba(255,255,255,0.08); border-color:var(--cyan); color:var(--cyan);
+}
+.btn-see-preview.has-video{
+  background:rgba(34,229,255,0.07); border-color:rgba(34,229,255,0.3); color:#fff;
+}
+.btn-see-preview.has-video:hover{
+  background:rgba(34,229,255,0.18); border-color:var(--cyan); color:var(--cyan);
+}
+.preview-available-badge{
+  position:absolute; bottom:12px; left:12px; z-index:2;
+  font-family:var(--ff-mono); font-size:10.5px; font-weight:500;
+  background:rgba(0,0,0,0.65); backdrop-filter:blur(8px);
+  padding:4px 9px; border-radius:6px; color:var(--cyan);
+  border:1px solid rgba(34,229,255,0.3);
+}
+
+.admin-card-bar{
+  display:flex; justify-content:space-between; align-items:center;
+  padding:6px 10px; background:rgba(255,255,255,0.02);
+  border:1px dashed rgba(255,255,255,0.12); border-radius:8px;
+  font-size:11.5px; font-family:var(--ff-mono);
+}
+.admin-card-btn{
+  background:none; border:none; color:var(--cyan); font-size:11.5px;
+  cursor:pointer; text-decoration:underline; font-family:var(--ff-mono);
+}
+.admin-card-btn:hover{ color:#fff; }
 .empty-state{ grid-column: 1/-1; text-align:center; padding:60px 20px; color:var(--text-dim); font-size:14.5px; }
 
 /* STEPS */

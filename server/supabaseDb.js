@@ -38,7 +38,8 @@ function toCamelCase(row) {
     reviewCount: row.review_count != null ? Number(row.review_count) : 0,
     bestseller: Boolean(row.bestseller),
     gradient: row.gradient || 'linear-gradient(135deg, #e535ab, #7a22ff)',
-    previewVideo: row.preview_video || row.previewVideo || null,
+    // previewUrl: YouTube / Google Drive link (new method — no file hosting needed)
+    previewUrl: row.preview_url || row.previewUrl || row.preview_video || row.previewVideo || null,
     driveLink: row.drive_link || row.driveLink || null,
     filePath: row.file_path || row.filePath || null,
     createdAt: row.created_at || row.createdAt || new Date().toISOString(),
@@ -148,7 +149,9 @@ async function updateProductPreview(id, previewUrl) {
   const localProducts = localDb.read('products');
   const prod = localProducts.find((p) => p.id === id || p.slug === id);
   if (prod) {
-    prod.previewVideo = previewUrl || null;
+    prod.previewUrl = previewUrl || null;
+    // Clear legacy field too
+    delete prod.previewVideo;
     await localDb.write('products', localProducts);
   }
 

@@ -33,7 +33,8 @@ function setAuthCookie(res, token) {
   res.cookie(COOKIE_NAME, token, {
     httpOnly: true,
     secure: IS_PROD,            // HTTPS-only in production
-    sameSite: IS_PROD ? 'strict' : 'lax',
+    // 'none' required for cross-origin cookies on Vercel (frontend + API on same domain still works)
+    sameSite: IS_PROD ? 'none' : 'lax',
     maxAge: 7 * 24 * 60 * 60 * 1000, // match JWT expiry
   });
 }
@@ -42,7 +43,7 @@ function clearAuthCookie(res) {
   res.clearCookie(COOKIE_NAME, {
     httpOnly: true,
     secure: IS_PROD,
-    sameSite: IS_PROD ? 'strict' : 'lax',
+    sameSite: IS_PROD ? 'none' : 'lax',
   });
 }
 

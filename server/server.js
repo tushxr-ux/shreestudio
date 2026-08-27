@@ -53,8 +53,14 @@ const apiLimiter = rateLimit({
 app.use('/api/', apiLimiter);
 
 // --- seed products on first boot if the store is empty ---
-if (read('products').length === 0) {
-  require('./data/seed.js');
+// On Vercel (serverless/read-only fs), skip the seed entirely — Supabase is the source of truth.
+try {
+  const IS_VERCEL = process.env.VERCEL === '1' || process.env.VERCEL_ENV !== undefined;
+  if (!IS_VERCEL && read('products').length === 0) {
+    require('./data/seed.js');
+  }
+} catch (_seedErr) {
+  // Silently skip seeding if filesystem is unavailable
 }
 
 // --- public config endpoint (no secrets!) ---

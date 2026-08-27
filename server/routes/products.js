@@ -1,7 +1,6 @@
 const express = require('express');
 const { read, write } = require('../db');
 const { requireAuth, requireAdmin } = require('../auth');
-const { handlePreviewUpload, publicPreviewUrl, removePreviewFile } = require('../upload');
 const { insertProduct, updateProductPreview } = require('../supabaseDb');
 
 const router = express.Router();
@@ -100,25 +99,27 @@ router.post('/:id/reviews', requireAuth, async (req, res) => {
   res.status(201).json({ review, product });
 });
 
-// POST /api/products — Add a new preset/pack (admin). Optional previewVideo file.
-router.post('/', requireAdmin, handlePreviewUpload, async (req, res) => {
-  const { name, category, categoryLabel, price, compareAtPrice, tagline, description, format, itemCount, gradient, driveLink } = req.body || {};
+// POST /api/products — Add a new preset/pack (admin). previewUrl is a YouTube/Drive link.
+router.post('/', requireAdmin, async (req, res) => {
+  const { name, category, categoryLabel, price, compareAtPrice, tagline, description, format, itemCount, gradient, driveLink, previewUrl } = req.body || {};
 
   if (!name || !String(name).trim() || String(name).trim().length > 200) {
-    if (req.file) removePreviewFile(publicPreviewUrl(req.file.filename));
     return res.status(400).json({ error: 'Name is required (max 200 chars).' });
   }
   if (!category || !String(category).trim()) {
-    if (req.file) removePreviewFile(publicPreviewUrl(req.file.filename));
     return res.status(400).json({ error: 'Category is required.' });
   }
   if (!price || isNaN(parseFloat(price)) || parseFloat(price) < 0) {
-    if (req.file) removePreviewFile(publicPreviewUrl(req.file.filename));
     return res.status(400).json({ error: 'Price must be a non-negative number.' });
   }
   if (description && String(description).length > 2000) {
-    if (req.file) removePreviewFile(publicPreviewUrl(req.file.filename));
     return res.status(400).json({ error: 'Description is too long (max 2000 chars).' });
+  }
+
+  // Validate preview URL — must be YouTube or Google Drive if provided
+  const cleanPreviewUrl = previewUrl ? stripHtml(String(previewUrl).trim()) : null;
+  if (cleanPreviewUrl && !/^https?:\/\/(www\.)?(youtube\.com|youtu\.be|drive\.google\.com)/.test(cleanPreviewUrl)) {
+    return res.status(400).json({ error: 'Preview URL must be a YouTube or Google Drive link.' });
   }
 
   const products = read('products');
@@ -141,7 +142,7 @@ router.post('/', requireAdmin, handlePreviewUpload, async (req, res) => {
     reviewCount: 1,
     bestseller: false,
     gradient: gradient || 'linear-gradient(135deg, #e535ab, #7a22ff)',
-    previewVideo: req.file ? publicPreviewUrl(req.file.filename) : null,
+    previewUrl: cleanPreviewUrl || null,
     driveLink: driveLink ? stripHtml(String(driveLink).trim()) : 'https://drive.google.com/drive/folders/shreestudio-preset-downloads',
     createdAt: new Date().toISOString(),
   };
@@ -151,28 +152,28 @@ router.post('/', requireAdmin, handlePreviewUpload, async (req, res) => {
   res.status(201).json({ product: newProduct });
 });
 
-// POST /api/products/:id/preview — upload or replace a preview video (admin)
-router.post('/:id/preview', requireAdmin, handlePreviewUpload, async (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({ error: 'Choose a preview video to upload (MP4, WebM, or MOV).' });
+// POST /api/products/:id/preview — set or update a preview URL (YouTube/Drive link)
+router.post('/:id/preview', requireAdmin, async (req, res) => {
+  const { previewUrl } = req.body || {};
+  const cleanUrl = previewUrl ? String(previewUrl).trim() : null;
+
+  if (cleanUrl && !/^https?:\/\/(www\.)?(youtube\.com|youtu\.be|drive\.google\.com)/.test(cleanUrl)) {
+    return res.status(400).json({ error: 'Preview URL must be a YouTube or Google Drive link.' });
   }
+
   const products = read('products');
   const product = findProduct(products, req.params.id);
-  if (!product) {
-    removePreviewFile(publicPreviewUrl(req.file.filename));
-    return res.status(404).json({ error: 'Product not found.' });
-  }
-  removePreviewFile(product.previewVideo);
-  const updatedProduct = await updateProductPreview(product.id, publicPreviewUrl(req.file.filename));
+  if (!product) return res.status(404).json({ error: 'Product not found.' });
+
+  const updatedProduct = await updateProductPreview(product.id, cleanUrl || null);
   res.json({ product: updatedProduct || product });
 });
 
-// DELETE /api/products/:id/preview — remove a preview video (admin)
+// DELETE /api/products/:id/preview — remove the preview URL (admin)
 router.delete('/:id/preview', requireAdmin, async (req, res) => {
   const products = read('products');
   const product = findProduct(products, req.params.id);
   if (!product) return res.status(404).json({ error: 'Product not found.' });
-  removePreviewFile(product.previewVideo);
   const updatedProduct = await updateProductPreview(product.id, null);
   res.json({ product: updatedProduct || product });
 });
