@@ -1070,6 +1070,22 @@
   }
 
   async function loadCurrentUser() {
+    // Check if redirected with an OAuth error in query or hash
+    const urlParams = new URLSearchParams(window.location.search);
+    const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+    const oauthError = urlParams.get('error_description') || hashParams.get('error_description') || urlParams.get('error') || hashParams.get('error');
+
+    if (oauthError) {
+      const decodedErr = decodeURIComponent(oauthError.replace(/\+/g, ' '));
+      if (decodedErr.includes('exchange external code')) {
+        toast('Google OAuth Error: Google Client Secret is missing or invalid in Supabase Dashboard.', 'error');
+      } else {
+        toast('Sign in error: ' + decodedErr, 'error');
+      }
+      // Clean ugly error params from URL
+      window.history.replaceState(null, '', window.location.pathname);
+    }
+
     try {
       const data = await api('/auth/me');
       state.user = data.user;
