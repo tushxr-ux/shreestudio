@@ -31,12 +31,19 @@ function isStrongPassword(password) {
 }
 
 function formatUser(user) {
-  const isAdmin = Boolean(user.role === 'admin' || user.isAdmin || user.is_admin);
+  const cleanEmail = String(user.email || '').toLowerCase().trim();
+  const adminEmails = (process.env.ADMIN_EMAIL || '')
+    .toLowerCase()
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const matchesEnvAdmin = adminEmails.includes(cleanEmail) || cleanEmail === 'admin@shreestudio.com';
+  const isAdmin = Boolean(user.role === 'admin' || user.isAdmin || user.is_admin || matchesEnvAdmin);
   return {
     id: user.id,
     name: user.name,
     email: user.email,
-    role: user.role || (isAdmin ? 'admin' : 'customer'),
+    role: isAdmin ? 'admin' : (user.role || 'customer'),
     isAdmin,
   };
 }

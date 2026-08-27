@@ -3,5 +3,8 @@ public/uploads/previews/*
 !public/uploads/previews/.gitkeep
 server/data/*.json
 .env
+.env*
+server/.env
+server/.env*
 *.log
 .DS_Store

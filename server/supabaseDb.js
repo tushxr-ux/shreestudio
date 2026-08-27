@@ -169,6 +169,20 @@ async function updateProductPreview(id, previewUrl) {
   return prod;
 }
 
+function checkIsAdmin(email, userRow) {
+  const cleanEmail = String(email || '').toLowerCase().trim();
+  const adminEmails = (process.env.ADMIN_EMAIL || '')
+    .toLowerCase()
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const matchesEnvAdmin = adminEmails.includes(cleanEmail) || cleanEmail === 'admin@shreestudio.com';
+  const hasDbAdminFlag = Boolean(
+    userRow && (userRow.is_admin || userRow.isAdmin || userRow.role === 'admin')
+  );
+  return Boolean(matchesEnvAdmin || hasDbAdminFlag);
+}
+
 // ── USERS & ROLES ───────────────────────────────────────────────────
 async function getUserByEmail(email) {
   if (!email) return null;
@@ -184,12 +198,13 @@ async function getUserByEmail(email) {
         .maybeSingle();
 
       if (!error && data) {
+        const isAdmin = checkIsAdmin(cleanEmail, data);
         return {
           id: data.id,
           name: data.name,
           email: data.email,
-          role: data.role || 'customer',
-          isAdmin: Boolean(data.is_admin || data.role === 'admin'),
+          role: isAdmin ? 'admin' : (data.role || 'customer'),
+          isAdmin,
           passwordHash: data.password_hash || '',
           createdAt: data.created_at,
         };
@@ -203,9 +218,11 @@ async function getUserByEmail(email) {
   const localUsers = localDb.read('users');
   const user = localUsers.find((u) => u.email && u.email.toLowerCase() === cleanEmail);
   if (user) {
+    const isAdmin = checkIsAdmin(cleanEmail, user);
     return {
       ...user,
-      isAdmin: Boolean(user.role === 'admin' || user.isAdmin),
+      role: isAdmin ? 'admin' : (user.role || 'customer'),
+      isAdmin,
     };
   }
   return null;
@@ -223,12 +240,13 @@ async function getUserById(id) {
         .maybeSingle();
 
       if (!error && data) {
+        const isAdmin = checkIsAdmin(data.email, data);
         return {
           id: data.id,
           name: data.name,
           email: data.email,
-          role: data.role || 'customer',
-          isAdmin: Boolean(data.is_admin || data.role === 'admin'),
+          role: isAdmin ? 'admin' : (data.role || 'customer'),
+          isAdmin,
           passwordHash: data.password_hash || '',
           createdAt: data.created_at,
         };
@@ -241,9 +259,11 @@ async function getUserById(id) {
   const localUsers = localDb.read('users');
   const user = localUsers.find((u) => u.id === id);
   if (user) {
+    const isAdmin = checkIsAdmin(user.email, user);
     return {
       ...user,
-      isAdmin: Boolean(user.role === 'admin' || user.isAdmin),
+      role: isAdmin ? 'admin' : (user.role || 'customer'),
+      isAdmin,
     };
   }
   return null;
@@ -262,8 +282,8 @@ async function upsertUser(user) {
     } catch (_e) {}
   }
 
-  const role = existingSupabase?.role || user.role || 'customer';
-  const isAdmin = Boolean(existingSupabase?.is_admin || existingSupabase?.role === 'admin' || user.isAdmin || role === 'admin');
+  const isAdmin = checkIsAdmin(cleanEmail, existingSupabase) || Boolean(user.isAdmin || user.role === 'admin');
+  const role = isAdmin ? 'admin' : (existingSupabase?.role || user.role || 'customer');
 
   const formatted = {
     id: user.id || existingSupabase?.id || ('u_' + Date.now().toString(36)),
