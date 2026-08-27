@@ -37,7 +37,7 @@ function formatUser(user) {
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean);
-  const matchesEnvAdmin = adminEmails.includes(cleanEmail) || cleanEmail === 'admin@shreestudio.com';
+  const matchesEnvAdmin = adminEmails.includes(cleanEmail);
   const isAdmin = Boolean(user.role === 'admin' || user.isAdmin || user.is_admin || matchesEnvAdmin);
   return {
     id: user.id,

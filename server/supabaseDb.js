@@ -176,7 +176,7 @@ function checkIsAdmin(email, userRow) {
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean);
-  const matchesEnvAdmin = adminEmails.includes(cleanEmail) || cleanEmail === 'admin@shreestudio.com';
+  const matchesEnvAdmin = adminEmails.includes(cleanEmail);
   const hasDbAdminFlag = Boolean(
     userRow && (userRow.is_admin || userRow.isAdmin || userRow.role === 'admin')
   );
