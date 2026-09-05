@@ -359,7 +359,7 @@
         <div class="qv-media" style="background:${p.gradient}">
           <div class="qv-gradient-preview"
                style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:10px;">
-            ${p.previewUrl ? `<span style="font-size:32px;">▶</span><span style="font-size:13px;color:rgba(255,255,255,0.7);">Preview on YouTube/Drive</span>` : `<span style="font-size:32px;opacity:0.4;">🎬</span>`}
+            ${p.previewUrl ? `<span style="font-size:32px;">▶</span><span style="font-size:13px;color:rgba(255,255,255,0.7);">Preview on YouTube/Drive</span>` : ''}
           </div>
         </div>
         <div class="qv-info">
@@ -860,7 +860,7 @@
             <span class="label-wrap">➕ Add New Pack</span>
           </button>
           <button id="mbManagePreviewsBtn" style="color:var(--violet); font-weight:600;">
-            <span class="label-wrap">🎬 Manage Previews</span>
+            <span class="label-wrap">🎞️ Manage Previews</span>
           </button>
           ` : ''}
           <button id="viewCartMenuBtn">
@@ -1096,7 +1096,7 @@
         (p) => `
       <div class="preview-admin-row" data-id="${p.id}">
         <div class="preview-admin-thumb" style="background:${p.gradient}">
-          ${p.previewUrl ? '<span style="font-size:20px;">▶</span>' : '<span style="font-size:20px;opacity:0.3;">🎬</span>'}
+          ${p.previewUrl ? '<span style="font-size:20px;">▶</span>' : ''}
         </div>
         <div class="preview-admin-meta">
           <b>${escapeHtml(p.name)}</b>
