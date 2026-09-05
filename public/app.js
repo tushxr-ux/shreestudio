@@ -15,7 +15,14 @@
   // ---------- tiny helpers ----------
   const $ = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
-  const money = (n) => `$${Number(n).toFixed(2).replace(/\.00$/, '')}`;
+  const money = (n) => {
+    const num = Number(n);
+    if (isNaN(num)) return '₹0';
+    if (Number.isInteger(num)) {
+      return `₹${num.toLocaleString('en-IN')}`;
+    }
+    return `₹${num.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
   const escapeHtml = (str) =>
     String(str).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -93,23 +100,44 @@
 
   // ================= CATEGORIES =================
   const catStyles = {
-    lightroom: { cls: 'cat1', blurb: 'Desktop & mobile .xmp / .dng presets' },
-    photoshop: { cls: 'cat2', blurb: 'Actions, gradients & retouch panels' },
-    premiere: { cls: 'cat3', blurb: 'LUTs, transitions & title templates' },
-    aftereffects: { cls: 'cat4', blurb: 'Motion templates & animation presets' },
+    lightroom: {
+      cls: 'cat1',
+      blurb: 'Desktop & mobile .xmp / .dng presets',
+      logo: '/logos/Adobe_Photoshop_Lightroom_CC_logo.svg.webp',
+    },
+    photoshop: {
+      cls: 'cat2',
+      blurb: 'Actions, gradients & retouch panels',
+      logo: '/logos/Adobe_Photoshop_CC_icon.svg.webp',
+    },
+    premiere: {
+      cls: 'cat3',
+      blurb: 'LUTs, transitions & title templates',
+      logo: '/logos/Adobe_Premiere_Pro_CC_icon.svg.webp',
+    },
+    aftereffects: {
+      cls: 'cat4',
+      blurb: 'Motion templates & animation presets',
+      logo: '/logos/Adobe_After_Effects_CC_icon.svg.webp',
+    },
   };
 
   function renderCategories() {
     const grid = $('#categoryGrid');
     grid.innerHTML = state.categories
       .map((c) => {
-        const style = catStyles[c.category] || { cls: 'cat1', blurb: '' };
+        const style = catStyles[c.category] || { cls: 'cat1', blurb: '', logo: '' };
         const active = state.activeCategory === c.category ? 'active' : '';
         return `
           <button class="cat-card ${style.cls} ${active}" data-category="${c.category}">
-            <span class="count">${c.count} pack${c.count === 1 ? '' : 's'}</span>
-            <h3>${escapeHtml(c.label)}</h3>
-            <p>${escapeHtml(style.blurb)}</p>
+            <div class="cat-card-top">
+              ${style.logo ? `<div class="cat-logo-wrap"><img src="${style.logo}" alt="${escapeHtml(c.label)} logo" class="cat-logo" loading="lazy" /></div>` : ''}
+              <span class="count">${c.count} pack${c.count === 1 ? '' : 's'}</span>
+            </div>
+            <div class="cat-card-bottom">
+              <h3 style="color:#ffffff;">${escapeHtml(c.label)}</h3>
+              <p>${escapeHtml(style.blurb)}</p>
+            </div>
           </button>`;
       })
       .join('');
